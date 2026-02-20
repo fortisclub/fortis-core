@@ -214,6 +214,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const fixTz = (s: any) => typeof s === 'string' ? s.replace(/Z$|\+00:00$|\+00$/, '') : s;
+
 
   const fetchGlobalStats = useCallback(async (periodArg?: string, customRangeArg?: { start: string; end: string }) => {
     const period = periodArg || filters.period;
@@ -304,12 +306,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabase.from('leads').select('status, after_sales_status, created_at, origin, uf').order('created_at', { ascending: false }).limit(10000),
       supabase.rpc('get_meta_ads_investment', { start_date: startDateStr, end_date: endDateStr }),
       supabase.rpc('get_meta_ads_investment', { start_date: pStartDateStr, end_date: pEndDateStr }),
-      supabase.from('lead_purchases').select('*').gte('date', startStr).lte('date', endStr).limit(10000),
-      supabase.from('lead_purchases').select('*').gte('date', pStartStr).lte('date', pEndStr).limit(10000),
+      supabase.from('lead_purchases').select('*').gte('date', startDateStr).lte('date', endDateStr).limit(10000),
+      supabase.from('lead_purchases').select('*').gte('date', pStartDateStr).lte('date', pEndDateStr).limit(10000),
       supabase.from('lead_purchases').select('lead_id, value, date, lead_origin').limit(100000), // GLOBAL
       supabase.rpc('get_meta_ads_investment'), // GLOBAL
       supabase.from('leads').select('*', { count: 'exact', head: true }).eq('origin', 'Tráfego pago'), // GLOBAL
-      supabase.from('leads').select('status, last_purchase_at, uf').gte('last_purchase_at', startStr).lte('last_purchase_at', endStr), // PERIOD DATA
+      supabase.from('leads').select('status, last_purchase_at, uf').gte('last_purchase_at', startDateStr).lte('last_purchase_at', endDateStr), // PERIOD DATA
     ]);
 
     // --- Processamento de Dados de Período (Charts) ---
@@ -322,10 +324,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const periodLeads = periodLeadsRes.data || [];
 
     periodLeads.forEach(row => {
-      const rowDate = new Date(row.last_purchase_at);
+      const rowDate = new Date(fixTz(row.last_purchase_at));
 
       // Trend Map
-      let sortKey = useDailyGrouping ? rowDate.toISOString().split('T')[0] : `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
+      let sortKey = useDailyGrouping ? `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}-${String(rowDate.getDate()).padStart(2, '0')}` : `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
       trendMap[sortKey] = (trendMap[sortKey] || 0) + 1;
 
       // Status Counts
@@ -405,7 +407,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ];
 
     allTimePurchases.forEach(p => {
-      const day = new Date(p.date).getUTCDate();
+      const day = new Date(fixTz(p.date)).getDate();
       if (day <= 8) buckets[0].count++;
       else if (day <= 16) buckets[1].count++;
       else if (day <= 24) buckets[2].count++;
@@ -601,7 +603,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const pHistory = l.lead_purchases || [];
       const purchaseHistory = pHistory.map((p: any) => ({
         id: String(p.id),
-        date: p.date,
+        date: fixTz(p.date),
         value: Number(p.value),
         status: p.status || 'Pago'
       })).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -662,7 +664,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         city: l.city || '',
         createdAt: l.created_at,
         lastContactAt: l.last_contact_at,
-        lastPurchaseAt: purchaseHistory.length > 0 ? purchaseHistory[0].date : l.last_purchase_at,
+        lastPurchaseAt: purchaseHistory.length > 0 ? purchaseHistory[0].date : fixTz(l.last_purchase_at),
         purchaseHistory,
         history: []
       };
@@ -741,7 +743,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'SALE' as const,
       description: `Venda realizada no valor de ${p.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.`,
       userId: 'system',
-      timestamp: p.date
+      timestamp: fixTz(p.date)
     }));
 
     // Combinar e ordenar por data decrescente

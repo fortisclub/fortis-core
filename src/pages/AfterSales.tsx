@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Star, TrendingUp, AlertCircle, ShoppingCart, MoreVertical, X, History, FileText, Phone, AtSign, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Calendar, User, Tags as TagsIcon } from 'lucide-react';
+import { Search, Filter, Star, TrendingUp, AlertCircle, ShoppingCart, MoreVertical, X, History, FileText, Phone, AtSign, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Calendar, User, Tags as TagsIcon, Check, ChevronDown } from 'lucide-react';
 import { useApp } from '../store';
 import { AFTER_SALES_STATUS_MAP, LEAD_STATUS_MAP } from '../constants';
 import { AfterSalesStatus, LeadStatus, LeadHistory } from '../types';
@@ -10,7 +10,7 @@ import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
 
 export const AfterSales: React.FC = () => {
-  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients } = useApp();
+  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead } = useApp();
 
   // Carregar todos os clientes ao montar a página
   React.useEffect(() => {
@@ -43,6 +43,7 @@ export const AfterSales: React.FC = () => {
 
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
   const { fetchLeadHistory } = useApp();
 
   // Carregar histórico apenas quando necessário
@@ -337,15 +338,69 @@ export const AfterSales: React.FC = () => {
                       </span>}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {(client.tags || []).slice(0, 2).map(t => (
-                        <span key={t} className="text-[8px] px-1.5 py-0.5 bg-fortis-surface rounded text-white font-bold uppercase">{t}</span>
-                      ))}
-                      {(client.tags || []).length > 2 && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-fortis-surface/50 rounded text-fortis-mid font-bold">+{(client.tags || []).length - 2}</span>
+                  <td className="px-6 py-4 relative">
+                    <div
+                      className="flex flex-wrap gap-1 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-colors min-h-[32px] items-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTagsId(editingTagsId === client.id ? null : client.id);
+                      }}
+                    >
+                      {(client.tags || []).length > 0 ? (
+                        <>
+                          {(client.tags || []).slice(0, 2).map(t => (
+                            <span key={t} className="text-[8px] px-1.5 py-0.5 bg-fortis-surface rounded text-white font-bold uppercase whitespace-nowrap">{t}</span>
+                          ))}
+                          {(client.tags || []).length > 2 && (
+                            <span className="text-[8px] px-1.5 py-0.5 bg-fortis-surface/50 rounded text-fortis-mid font-bold">+{(client.tags || []).length - 2}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[8px] text-fortis-mid font-black uppercase opacity-50">Sem Tags</span>
                       )}
+                      <ChevronDown size={10} className="ml-auto text-fortis-mid" />
                     </div>
+
+                    {editingTagsId === client.id && (
+                      <>
+                        <div className="fixed inset-0 z-[100]" onClick={(e) => { e.stopPropagation(); setEditingTagsId(null); }} />
+                        <div
+                          className="absolute top-full left-6 mt-1 w-56 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl z-[101] p-2 animate-in fade-in zoom-in-95 duration-200"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="text-[9px] font-black text-fortis-mid uppercase tracking-widest px-2 py-1 mb-1 border-b border-fortis-surface/50">
+                            Selecionar Tags
+                          </div>
+                          <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5">
+                            {tags.map(tag => {
+                              const isSelected = (client.tags || []).includes(tag.label);
+                              return (
+                                <div
+                                  key={tag.id}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const newTags = isSelected
+                                      ? (client.tags || []).filter(t => t !== tag.label)
+                                      : [...(client.tags || []), tag.label];
+                                    await updateLead(client.id, { tags: newTags });
+                                  }}
+                                  className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-fortis-brand/20 text-fortis-brand' : 'hover:bg-fortis-surface text-fortis-mid'}`}
+                                >
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                  <span className="text-[10px] font-black uppercase tracking-wider">{tag.label}</span>
+                                  {isSelected && <Check size={12} className="ml-auto" />}
+                                </div>
+                              );
+                            })}
+                            {tags.length === 0 && (
+                              <div className="p-3 text-center">
+                                <p className="text-[10px] text-fortis-mid font-black uppercase">Nenhuma tag encontrada</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-xs font-bold text-white/80">{client.origin}</span>
