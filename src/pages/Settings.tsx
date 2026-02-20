@@ -13,9 +13,12 @@ import {
   Edit2,
   Trash2,
   Compass,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { useApp } from '../store';
+import { supabase } from '../lib/supabase';
+
 
 const tabs = [
   { id: 'empresa', label: 'Empresa', icon: Building2 },
@@ -111,8 +114,52 @@ export const Settings: React.FC = () => {
     tags, channels, origins,
     addTag, updateTag, removeTag,
     addChannel, updateChannel, removeChannel,
-    addOrigin, updateOrigin, removeOrigin
+    addOrigin, updateOrigin, removeOrigin,
+    companySettings, updateSettings
   } = useApp();
+
+  const [companyName, setCompanyName] = useState(companySettings.company_name);
+  const [contactEmail, setContactEmail] = useState(companySettings.contact_email);
+  const [address, setAddress] = useState(companySettings.address);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    setCompanyName(companySettings.company_name);
+    setContactEmail(companySettings.contact_email);
+    setAddress(companySettings.address);
+  }, [companySettings]);
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Math.random()}.${fileExt}`;
+      const filePath = `brand/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('brand')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('brand')
+        .getPublicUrl(filePath);
+
+      await updateSettings({ logo_url: publicUrl });
+    } catch (error: any) {
+      console.error('Error uploading logo:', error);
+      alert('Erro ao fazer upload do logo: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+
 
   const getSingular = (title: string) => {
     if (title === 'Tags') return 'tag';
@@ -198,28 +245,55 @@ export const Settings: React.FC = () => {
         {activeTab === 'empresa' && (
           <div className="space-y-6">
             <div className="flex items-center gap-6 mb-8 p-6 bg-fortis-dark rounded-2xl border border-fortis-surface">
-              <img src="https://picsum.photos/seed/fortis/150" className="w-24 h-24 rounded-2xl object-cover border border-fortis-surface shadow-lg" alt="Logo" />
+              <img src={companySettings.logo_url} className="w-24 h-24 rounded-2xl object-cover border border-fortis-surface shadow-lg" alt="Logo" />
               <div>
-                <h4 className="font-bold text-lg">Fortis Clothing S.A.</h4>
+                <h4 className="font-bold text-lg">{companyName}</h4>
                 <p className="text-fortis-mid text-sm mb-4">Branding e informações corporativas.</p>
-                <button className="bg-fortis-surface hover:bg-fortis-mid text-white px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all">Alterar Logo</button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="bg-fortis-surface hover:bg-fortis-mid text-white px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2"
+                >
+                  {isUploading ? <Loader2 size={12} className="animate-spin" /> : 'Alterar Logo'}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleLogoUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Nome da Empresa</label>
-                <input className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-4 py-2 text-sm focus:border-fortis-brand outline-none" defaultValue="Fortis Clothing S.A." />
+                <input
+                  className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-4 py-2 text-sm focus:border-fortis-brand outline-none"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">E-mail de Contato</label>
-                <input className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-4 py-2 text-sm focus:border-fortis-brand outline-none" defaultValue="contato@fortis.clothing" />
+                <input
+                  className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-4 py-2 text-sm focus:border-fortis-brand outline-none"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                />
               </div>
               <div className="col-span-2 space-y-1">
                 <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Endereço</label>
-                <input className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-4 py-2 text-sm focus:border-fortis-brand outline-none" defaultValue="Av. Paulista, 1000 - Bela Vista, São Paulo - SP" />
+                <input
+                  className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-4 py-2 text-sm focus:border-fortis-brand outline-none"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
               </div>
             </div>
+
           </div>
         )}
 
@@ -269,10 +343,14 @@ export const Settings: React.FC = () => {
         )}
 
         <div className="mt-12 flex justify-end">
-          <button className="flex items-center gap-2 bg-fortis-brand hover:bg-opacity-90 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-fortis-brand/20">
+          <button
+            onClick={() => updateSettings({ company_name: companyName, contact_email: contactEmail, address })}
+            className="flex items-center gap-2 bg-fortis-brand hover:bg-opacity-90 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-fortis-brand/20"
+          >
             <Save size={16} /> Salvar Alterações
           </button>
         </div>
+
       </div>
 
       <ConfigModal

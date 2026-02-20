@@ -2,6 +2,14 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment } from './types';
 import { LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, CHANNELS as INITIAL_CHANNELS, ORIGINS as INITIAL_ORIGINS, PAID_PURCHASE_STATUSES, UNPAID_PURCHASE_STATUSES } from './constants';
+
+export interface CompanySettings {
+  company_name: string;
+  contact_email: string;
+  address: string;
+  logo_url: string;
+}
+
 import { supabase } from './lib/supabase';
 import { useAuth } from './contexts/AuthContext';
 
@@ -81,6 +89,10 @@ interface AppContextType {
   isLoadingMore: boolean;
   loadMore: () => Promise<void>;
   fetchAllClients: () => Promise<void>;
+  companySettings: CompanySettings;
+  updateSettings: (updates: Partial<CompanySettings>) => Promise<void>;
+  fetchSettings: () => Promise<void>;
+
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -119,6 +131,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [trafficInvestments, setTrafficInvestments] = useState<TrafficInvestment[]>([]);
   const [logs] = useState<ActivityLog[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings>({
+    company_name: 'Fortis Clothing S.A.',
+    contact_email: 'contato@fortis.clothing',
+    address: 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP',
+    logo_url: 'https://picsum.photos/seed/fortis/150'
+  });
+
+  const fetchSettings = useCallback(async () => {
+    const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
+    if (!error && data) {
+      setCompanySettings({
+        company_name: data.company_name,
+        contact_email: data.contact_email,
+        address: data.address,
+        logo_url: data.logo_url
+      });
+    }
+  }, []);
+
+  const updateSettings = async (updates: Partial<CompanySettings>) => {
+    const { error } = await supabase.from('settings').update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    }).eq('id', 1);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível salvar as configurações.', 'ERROR');
+      return;
+    }
+
+    setCompanySettings(prev => ({ ...prev, ...updates }));
+    addNotification('Sucesso', 'Configurações salvas com sucesso!', 'SUCCESS');
+  };
 
   const [filters, setFiltersState] = useState({
     period: 'este_mes',
@@ -138,6 +183,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     leadsRef.current = leads;
   }, [leads]);
+
+
   const [globalStats, setGlobalStats] = useState({
     totalLeads: 0,
     totalCustomers: 0,
@@ -711,6 +758,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await fetchLeads();
       await fetchGlobalStats();
       await fetchTrafficInvestments();
+      await fetchSettings();
+
 
       // Tags, Channels, Origins
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -967,8 +1016,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addLead, updateLead, deleteLead, moveLead, updateUser, deleteUser, addNotification, clearNotification, addLeadNote, addLeadSale,
       addTag, updateTag, removeTag, addChannel, updateChannel, removeChannel, addOrigin, updateOrigin, removeOrigin, fetchLeads, fetchUsers, fetchLeadHistory, fetchGlobalStats, fetchTrafficInvestments,
       globalStats, hasMore, isLoadingMore, loadMore, fetchAllClients, trafficInvestments,
-      filters, setFilters
+      filters, setFilters,
+      companySettings, updateSettings, fetchSettings
     }}>
+
       {children}
     </AppContext.Provider>
   );

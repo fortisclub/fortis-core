@@ -15,7 +15,7 @@ const navItems = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { currentUser, isSidebarCollapsed, toggleSidebar } = useApp();
+  const { currentUser, isSidebarCollapsed, toggleSidebar, companySettings } = useApp();
   const { signOut } = useAuth();
 
   const firstName = currentUser?.name.split(' ')[0] || '';
@@ -24,10 +24,11 @@ export const Sidebar: React.FC = () => {
     <aside className={`bg-fortis-dark border-r border-fortis-surface h-screen sticky top-0 flex flex-col transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
       <div className={`p-8 flex items-center ${isSidebarCollapsed ? 'justify-center border-b border-fortis-surface/30 mb-4' : 'justify-between'}`}>
         {!isSidebarCollapsed && (
-          <h1 className="text-2xl font-bold tracking-tighter text-fortis-brand flex items-center gap-2 animate-in fade-in duration-300">
-            FORTIS <span className="text-white font-light text-sm uppercase tracking-[0.3em]">Core</span>
+          <h1 className="text-xl font-bold tracking-tighter text-fortis-brand flex items-center gap-2 animate-in fade-in duration-300 truncate">
+            {companySettings.company_name.split(' ')[0]} <span className="text-white font-light text-xs uppercase tracking-[0.2em]">{companySettings.company_name.split(' ').slice(1).join(' ')}</span>
           </h1>
         )}
+
         {isSidebarCollapsed && (
           <div className="text-fortis-brand font-black text-xl animate-in zoom-in duration-300">F</div>
         )}
