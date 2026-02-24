@@ -303,12 +303,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ] = await Promise.all([
       supabase.from('leads').select('*', { count: 'exact', head: true }).gte('created_at', startStr).lte('created_at', endStr),
       supabase.from('leads').select('*', { count: 'exact', head: true }).gte('created_at', pStartStr).lte('created_at', pEndStr),
-      supabase.from('leads').select('status, after_sales_status, created_at, origin, uf').order('created_at', { ascending: false }).limit(10000),
+      supabase.from('leads').select('id, status, after_sales_status, created_at, origin, uf').order('created_at', { ascending: false }).limit(10000),
       supabase.rpc('get_meta_ads_investment', { start_date: startDateStr, end_date: endDateStr }),
       supabase.rpc('get_meta_ads_investment', { start_date: pStartDateStr, end_date: pEndDateStr }),
       supabase.from('lead_purchases').select('*').gte('date', startDateStr).lte('date', endDateStr).limit(10000),
       supabase.from('lead_purchases').select('*').gte('date', pStartDateStr).lte('date', pEndDateStr).limit(10000),
-      supabase.from('lead_purchases').select('lead_id, value, date, lead_origin').limit(100000), // GLOBAL
+      supabase.from('lead_purchases').select('lead_id, value, date, status, lead_origin').limit(100000), // GLOBAL
       supabase.rpc('get_meta_ads_investment'), // GLOBAL
       supabase.from('leads').select('*', { count: 'exact', head: true }).eq('origin', 'Tráfego pago'), // GLOBAL
       supabase.from('leads').select('status, last_purchase_at, uf').gte('last_purchase_at', startDateStr).lte('last_purchase_at', endDateStr), // PERIOD DATA
@@ -365,16 +365,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const AFTER_SALES_KEYS = ['PRIMEIRA_COMPRA', 'RECORRENTE', 'VIP', 'INATIVO', 'GANHO', 'FINALIZADO'];
 
+    // Map global purchases to calculate derived after-sales status
+    const allTimePurchasesGlobal = allPurchasesRes.data || [];
+    const leadPurchaseStats: Record<string, { count: number; total: number; lastDate: string }> = {};
+
+    allTimePurchasesGlobal.forEach(p => {
+      if (!PAID_PURCHASE_STATUSES.includes(p.status || 'Pago')) return;
+      const lid = String(p.lead_id);
+      if (!leadPurchaseStats[lid]) {
+        leadPurchaseStats[lid] = { count: 0, total: 0, lastDate: p.date };
+      }
+      leadPurchaseStats[lid].count++;
+      leadPurchaseStats[lid].total += Number(p.value);
+      if (new Date(p.date) > new Date(leadPurchaseStats[lid].lastDate)) {
+        leadPurchaseStats[lid].lastDate = p.date;
+      }
+    });
+
     if (allStatusRows) {
       allStatusRows.forEach(row => {
-        const isClient = AFTER_SALES_KEYS.includes(row.status);
-        if (isClient) {
-          const asStatus = row.after_sales_status || (AFTER_SALES_KEYS.includes(row.status) ? row.status : 'PRIMEIRA_COMPRA');
-          if (asCounts.hasOwnProperty(asStatus)) {
-            asCounts[asStatus] = (asCounts[asStatus] || 0) + 1;
-          } else if (row.status === 'GANHO' || row.status === 'FINALIZADO') {
-            asCounts['PRIMEIRA_COMPRA'] = (asCounts['PRIMEIRA_COMPRA'] || 0) + 1;
+        const statsInfo = leadPurchaseStats[String(row.id)];
+        let effectiveStatus = (row.status || 'NOVO') as LeadStatus;
+        let effectiveAfterSalesStatus = row.after_sales_status as AfterSalesStatus;
+
+        // Same logic as processLeads for consistency
+        if (statsInfo && statsInfo.count > 0) {
+          const lastPurchaseDate = new Date(fixTz(statsInfo.lastDate));
+          const diffDays = (new Date().getTime() - lastPurchaseDate.getTime()) / (1000 * 3600 * 24);
+
+          if (statsInfo.total > 1000) {
+            effectiveAfterSalesStatus = 'VIP';
+          } else if (statsInfo.count > 1) {
+            effectiveAfterSalesStatus = 'RECORRENTE';
+          } else if (diffDays > 90) {
+            effectiveAfterSalesStatus = 'INATIVO';
+          } else {
+            effectiveAfterSalesStatus = 'PRIMEIRA_COMPRA';
           }
+          effectiveStatus = effectiveAfterSalesStatus as LeadStatus;
+        } else if (effectiveStatus === 'GANHO' || effectiveStatus === 'FINALIZADO') {
+          effectiveAfterSalesStatus = 'PRIMEIRA_COMPRA';
+        }
+
+        const asStatus = effectiveAfterSalesStatus || (AFTER_SALES_KEYS.includes(effectiveStatus) ? effectiveStatus : undefined);
+
+        if (asStatus && asCounts.hasOwnProperty(asStatus)) {
+          asCounts[asStatus]++;
         }
       });
     }
@@ -627,12 +663,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const lastPurchaseDate = new Date(paidPurchases[0].date);
         const diffDays = (new Date().getTime() - lastPurchaseDate.getTime()) / (1000 * 3600 * 24);
 
-        if (diffDays > 90) {
-          currentAfterSalesStatus = 'INATIVO';
-        } else if (totalValue > 1000) {
+        if (totalValue > 1000) {
           currentAfterSalesStatus = 'VIP';
         } else if (purchaseCount > 1) {
           currentAfterSalesStatus = 'RECORRENTE';
+        } else if (diffDays > 90) {
+          currentAfterSalesStatus = 'INATIVO';
         } else {
           currentAfterSalesStatus = 'PRIMEIRA_COMPRA';
         }
@@ -697,7 +733,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         `)
         .in('status', CLIENT_STATUSES)
         .order('created_at', { ascending: false })
-        .limit(2000); // Traz uma base maior de uma vez
+        .limit(5000); // Traz uma base maior de uma vez
 
       if (error) throw error;
       if (data) {
@@ -891,7 +927,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (historyEntries.length > 0) {
       await supabase.from('lead_history').insert(historyEntries);
     }
-    await fetchLeads();
+
+    // Update local state instead of full re-fetch to avoid wiping out clients on AfterSales page
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+
+    // Refresh stats in background
+    fetchGlobalStats();
   };
 
   const moveLead = async (id: string, status: LeadStatus) => {
@@ -906,7 +947,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: note,
       user_id: currentUser?.id
     }]);
-    if (!error) await fetchLeads();
+
+    // No need to fetchLeads here, history is fetched on demand in the modal
   };
 
   const addLeadSale = async (leadId: string, value: number, note?: string) => {
@@ -914,9 +956,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!lead) return;
 
     const now = new Date().toISOString();
-    const newTotalValue = (lead.purchaseHistory || []).reduce((acc, p) => acc + p.value, 0) + value;
-    const newPurchaseCount = (lead.purchaseHistory?.length || 0) + 1;
-
     await supabase.from('lead_purchases').insert([{ lead_id: leadId, value, date: now, status: 'Pago' }]);
     await supabase.from('leads').update({ status: 'GANHO', last_purchase_at: now }).eq('id', leadId);
     await supabase.from('lead_history').insert([{
@@ -926,7 +965,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       user_id: currentUser?.id
     }]);
 
-    await fetchLeads();
+    // Re-fetch everything to ensure derived status logic is updated correctly
+    await Promise.all([fetchLeads(), fetchGlobalStats(), fetchAllClients()]);
     addNotification('Venda', 'Venda registrada e status de pós-venda atualizado.', 'SUCCESS');
   };
 
