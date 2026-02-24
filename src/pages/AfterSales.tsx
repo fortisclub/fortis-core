@@ -81,7 +81,7 @@ export const AfterSales: React.FC = () => {
     }));
   }, [leads, localFilters]);
 
-  const { sortedData: sortedAfterSales, sortConfig, requestSort } = useTableSort(filtered);
+  const { sortedData: sortedAfterSales, sortConfig, requestSort } = useTableSort(filtered, { key: 'lastPurchaseAt', direction: 'desc' });
 
   const paginatedAfterSales = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
