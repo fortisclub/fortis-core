@@ -66,6 +66,7 @@ interface AppContextType {
     paidLeadsCount: number;
     totalSalesCount: number;
     paidSalesValue: number;
+    totalPeriodSalesValue: number;
     acquisitionTrend: { month: string; value: number }[];
     salesBuckets: { range: string; count: number }[];
     prev: {
@@ -78,6 +79,7 @@ interface AppContextType {
       paidLeadsCount: number;
       totalSalesCount: number;
       paidSalesValue: number;
+      totalPeriodSalesValue: number;
     };
   };
   filters: {
@@ -199,6 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paidLeadsCount: 0,
     totalSalesCount: 0,
     paidSalesValue: 0,
+    totalPeriodSalesValue: 0,
     acquisitionTrend: [],
     salesBuckets: [] as { range: string; count: number }[],
     prev: {
@@ -211,6 +214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       paidLeadsCount: 0,
       totalSalesCount: 0,
       paidSalesValue: 0,
+      totalPeriodSalesValue: 0,
     }
   });
 
@@ -419,12 +423,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const tInv = Number(invRpcRes.data) || 0;
     const purchasesPeriod = purchasesPeriodRes.data || [];
     const pVal = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').reduce((acc, p) => acc + Number(p.value), 0) || 0;
+    const totalPeriodVal = purchasesPeriod.reduce((acc, p) => acc + Number(p.value), 0) || 0;
     const totalPurchasesCount = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').length || 0;
 
     // === ANTERIORES / PERÍODO ===
     const prevTInv = Number(prevInvRpcRes.data) || 0;
     const prevPurchasesPeriodResult = prevPurchasesPeriodRes.data || [];
     const prevPVal = prevPurchasesPeriodResult.filter(p => p.lead_origin === 'Tráfego pago').reduce((acc, p) => acc + Number(p.value), 0) || 0;
+    const prevTotalPeriodVal = prevPurchasesPeriodResult.reduce((acc, p) => acc + Number(p.value), 0) || 0;
     const prevTotalPurchasesCount = prevPurchasesPeriodResult.filter(p => p.lead_origin === 'Tráfego pago').length || 0;
 
     // === GLOBAIS / ALL-TIME ===
@@ -464,6 +470,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       paidLeadsCount: allTimePaidLeads,
       totalSalesCount: totalPurchasesCount,
       paidSalesValue: pVal,
+      totalPeriodSalesValue: totalPeriodVal,
       acquisitionTrend,
       salesBuckets: buckets,
       prev: {
@@ -476,6 +483,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paidLeadsCount: allTimePaidLeads,
         totalSalesCount: prevTotalPurchasesCount,
         paidSalesValue: prevPVal,
+        totalPeriodSalesValue: prevTotalPeriodVal,
       }
     });
   }, [filters]);

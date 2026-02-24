@@ -83,7 +83,7 @@ export const Dashboard: React.FC = () => {
 
   const kpis = [
     { label: 'Investimento', value: globalStats.totalInvestment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: Activity, color: 'text-blue-400', diff: getDiffDisplay(globalStats.totalInvestment, globalStats.prev.totalInvestment) },
-    { label: 'Faturamento de mídia paga', value: globalStats.paidSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: DollarSign, color: 'text-emerald-400', diff: getDiffDisplay(globalStats.paidSalesValue, globalStats.prev.paidSalesValue) },
+    { label: 'Faturamento total', value: globalStats.totalPeriodSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: DollarSign, color: 'text-emerald-400', diff: getDiffDisplay(globalStats.totalPeriodSalesValue, globalStats.prev.totalPeriodSalesValue) },
     { label: 'CAC', value: cacVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: Activity, color: 'text-purple-400' },
     { label: 'Média de compras', value: mediaCompras, icon: TrendingUp, color: 'text-amber-400' },
     { label: 'ROAS', value: roas, icon: Target, color: 'text-yellow-400', diff: getDiffDisplay(roasVal, prevRoasVal) },
