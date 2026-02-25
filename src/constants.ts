@@ -1,5 +1,5 @@
 
-import { LeadStatus, AfterSalesStatus, UserRole } from './types';
+import { LeadStatus, AfterSalesStatus, UserRole, AfterSalesPhase } from './types';
 
 export const COLORS = {
   brand: '#588575',
@@ -22,7 +22,8 @@ export const LEAD_STATUS_MAP: Record<LeadStatus, { label: string; color: string 
   RECORRENTE: { label: 'Recorrente', color: '#34D399' },
   VIP: { label: 'VIP', color: '#FBBF24' },
   INATIVO: { label: 'Inativo', color: '#EF4444' },
-  SEM_CLASSIFICACAO: { label: 'Sem Classificação', color: '#94A3B8' }
+  SEM_CLASSIFICACAO: { label: 'Sem Classificação', color: '#94A3B8' },
+  FINALIZADO: { label: 'Finalizado', color: '#34D399' }
 };
 
 export const AFTER_SALES_STATUS_MAP: Record<AfterSalesStatus, { label: string; color: string }> = {
@@ -30,6 +31,14 @@ export const AFTER_SALES_STATUS_MAP: Record<AfterSalesStatus, { label: string; c
   RECORRENTE: { label: 'Recorrente', color: '#34D399' },
   VIP: { label: 'VIP', color: '#FBBF24' },
   INATIVO: { label: 'Inativo', color: '#EF4444' }
+};
+
+export const AFTER_SALES_PHASE_MAP: Record<AfterSalesPhase, { label: string; color: string }> = {
+  A_CONTATAR: { label: 'A Contatar', color: '#A78BFA' },
+  EM_ATENDIMENTO: { label: 'Em Atendimento', color: '#F97316' },
+  FOLLOW_UP: { label: 'Follow Up', color: '#FBBF24' },
+  QUALIFICADO: { label: 'Qualificado', color: '#34D399' },
+  SEM_INTERESSE: { label: 'Sem Interesse no Momento', color: '#EF4444' }
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

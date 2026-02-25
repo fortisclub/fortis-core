@@ -106,6 +106,7 @@ const FIELD_LABELS: Record<string, string> = {
 
   status: 'Status',
   afterSalesStatus: 'Status de Pós-venda',
+  afterSalesPhase: 'Fase de Pós-venda',
   responsibleId: 'Responsável',
   channel: 'Canal',
   origin: 'Origem',
@@ -695,6 +696,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone: l.phone || '',
         status: currentStatus,
         afterSalesStatus: currentAfterSalesStatus,
+        afterSalesPhase: l.after_sales_phase || 'A_CONTATAR',
         responsibleId: l.responsible_id,
         tags: Array.isArray(l.tags) ? l.tags : [],
         channel: l.channel || 'Não informado',
@@ -906,6 +908,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (updates.addressNumber !== undefined) dataUpdates.address_number = updates.addressNumber;
     if (updates.district !== undefined) dataUpdates.district = updates.district;
     if (updates.city !== undefined) dataUpdates.city = updates.city;
+    if (updates.afterSalesPhase !== undefined) dataUpdates.after_sales_phase = updates.afterSalesPhase;
 
     const { error } = await supabase.from('leads').update(dataUpdates).eq('id', id);
 

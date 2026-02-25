@@ -37,7 +37,10 @@ export const Leads: React.FC = () => {
 
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const { fetchLeadHistory } = useApp();
+  const { fetchLeadHistory, updateLead } = useApp();
+
+  const [confirmingLeadMove, setConfirmingLeadMove] = useState<{ id: string; status: LeadStatus; email: string } | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState('');
 
   // Reset e fetch inicial
   React.useEffect(() => {
@@ -271,7 +274,13 @@ export const Leads: React.FC = () => {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     const id = e.dataTransfer.getData('leadId');
-                    moveLead(id, status);
+                    if (status === 'QUALIFICADO') {
+                      const lead = leads.find(l => l.id === id);
+                      setConfirmingLeadMove({ id, status, email: lead?.email || '' });
+                      setConfirmationEmail(lead?.email || '');
+                    } else {
+                      moveLead(id, status);
+                    }
                   }}
                 >
                   <div className="p-4 flex items-center justify-between shrink-0 bg-fortis-panel/10">
@@ -669,6 +678,68 @@ export const Leads: React.FC = () => {
         onClose={() => setIsEditModalOpen(false)}
         leadId={selectedLeadId}
       />
+
+      {confirmingLeadMove && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmingLeadMove(null)} />
+          <div className="relative bg-fortis-dark border border-fortis-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-fortis-surface flex items-center justify-between bg-fortis-panel/50">
+              <h3 className="text-lg font-bold text-white">Confirmar Qualificação</h3>
+              <button onClick={() => setConfirmingLeadMove(null)} className="text-fortis-mid hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                <AtSign size={20} />
+                <p className="text-xs font-bold leading-relaxed">
+                  Para qualificar este lead, é necessário confirmar ou inserir o e-mail de contato.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-fortis-mid uppercase tracking-widest pl-1">E-mail do Lead</label>
+                <div className="relative">
+                  <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fortis-mid" />
+                  <input
+                    type="email"
+                    value={confirmationEmail}
+                    onChange={(e) => setConfirmationEmail(e.target.value)}
+                    className="w-full bg-fortis-panel border border-fortis-surface rounded-xl pl-9 pr-4 py-3 text-sm text-white font-bold outline-none focus:border-fortis-brand transition-all"
+                    placeholder="exemplo@email.com"
+                    autoFocus
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-fortis-panel/30 flex gap-3">
+              <button
+                onClick={() => setConfirmingLeadMove(null)}
+                className="flex-1 px-4 py-3 rounded-xl border border-fortis-surface text-xs font-bold text-fortis-mid hover:text-white transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (confirmationEmail.trim()) {
+                    await updateLead(confirmingLeadMove.id, {
+                      email: confirmationEmail.trim(),
+                      status: 'QUALIFICADO' as LeadStatus
+                    });
+                    setConfirmingLeadMove(null);
+                  }
+                }}
+                disabled={!confirmationEmail.trim() || !confirmationEmail.includes('@')}
+                className="flex-1 bg-fortis-brand hover:bg-fortis-brand/90 disabled:opacity-50 px-4 py-3 rounded-xl text-xs font-bold text-white shadow-lg transition-all active:scale-95"
+              >
+                Qualificar Lead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { X, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useApp } from '../store';
-import { UFS, LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP } from '../constants';
+import { UFS, LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, AFTER_SALES_PHASE_MAP } from '../constants';
 import { LeadStatus } from '../types';
 
 interface LeadModalProps {
@@ -16,7 +16,8 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
   const { addLead, updateLead, deleteLead, leads, users, tags: availableTags, channels, origins } = useApp();
   const editLead = leadId ? leads.find(l => l.id === leadId) : null;
 
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm();
+  const currentStatus = watch('status');
 
   const [tagSearch, setTagSearch] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -37,6 +38,7 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
           uf: editLead.uf,
           notes: editLead.notes,
           cpf: editLead.cpf || '',
+          afterSalesPhase: editLead.afterSalesPhase || 'A_CONTATAR',
         });
       } else {
         reset({
@@ -87,6 +89,9 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
     tag.label.toLowerCase().includes(tagSearch.toLowerCase())
   );
 
+  const statusesRequiringEmail = ['QUALIFICADO', 'AGUARDANDO_PAGAMENTO', 'GANHO', 'PERDIDO', 'PRIMEIRA_COMPRA', 'RECORRENTE', 'VIP', 'INATIVO', 'FINALIZADO'];
+  const isEmailRequired = !!editLead?.afterSalesStatus || statusesRequiringEmail.includes(currentStatus);
+
   return (
     <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -134,10 +139,10 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-fortis-mid uppercase tracking-widest mb-1">E-mail *</label>
+              <label className="block text-[11px] font-bold text-fortis-mid uppercase tracking-widest mb-1">E-mail {isEmailRequired ? '*' : '(Opcional)'}</label>
               <input
                 type="email"
-                {...register('email', { required: true })}
+                {...register('email', { required: isEmailRequired })}
                 className="w-full bg-fortis-panel border border-fortis-surface rounded-lg px-3 py-2 text-sm focus:border-fortis-brand outline-none"
               />
               {errors.email && <span className="text-red-500 text-[10px]">Obrigatório</span>}
@@ -186,6 +191,20 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
               </select>
               {errors.responsibleId && <span className="text-red-500 text-[10px]">Obrigatório</span>}
             </div>
+
+            {editLead?.afterSalesStatus && (
+              <div>
+                <label className="block text-[11px] font-bold text-fortis-mid uppercase tracking-widest mb-1">Fase do Pipeline</label>
+                <select
+                  {...register('afterSalesPhase')}
+                  className="w-full bg-fortis-panel border border-fortis-surface rounded-lg px-3 py-2 text-sm focus:border-fortis-brand outline-none"
+                >
+                  {Object.entries(AFTER_SALES_PHASE_MAP).map(([key, val]) => (
+                    <option key={key} value={key}>{val.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-[11px] font-bold text-fortis-mid uppercase tracking-widest mb-1">UF *</label>
