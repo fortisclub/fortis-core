@@ -38,7 +38,7 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
           uf: editLead.uf,
           notes: editLead.notes,
           cpf: editLead.cpf || '',
-          afterSalesPhase: editLead.afterSalesPhase || 'A_CONTATAR',
+          afterSalesPhase: (editLead.afterSalesPhase as string) === 'A_CONTACTAR' ? 'A_CONTATAR' as any : (editLead.afterSalesPhase || null),
         });
       } else {
         reset({
@@ -62,6 +62,10 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
 
   const onSubmit = async (data: any) => {
     try {
+      if (!editLead?.afterSalesStatus) {
+        data.afterSalesPhase = null;
+      }
+
       if (editLead) {
         await updateLead(editLead.id, data);
       } else {

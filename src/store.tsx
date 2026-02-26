@@ -696,7 +696,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone: l.phone || '',
         status: currentStatus,
         afterSalesStatus: currentAfterSalesStatus,
-        afterSalesPhase: l.after_sales_phase || 'A_CONTATAR',
+        afterSalesPhase: (l.after_sales_phase as any) === 'A_CONTACTAR' ? 'A_CONTATAR' : (l.after_sales_phase || undefined),
         responsibleId: l.responsible_id,
         tags: Array.isArray(l.tags) ? l.tags : [],
         channel: l.channel || 'Não informado',
@@ -864,7 +864,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         address: newLeadData.address,
         address_number: newLeadData.addressNumber,
         district: newLeadData.district,
-        city: newLeadData.city
+        city: newLeadData.city,
+        after_sales_phase: null,
+        last_purchase_at: null
       }])
       .select()
       .single();
@@ -908,7 +910,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (updates.addressNumber !== undefined) dataUpdates.address_number = updates.addressNumber;
     if (updates.district !== undefined) dataUpdates.district = updates.district;
     if (updates.city !== undefined) dataUpdates.city = updates.city;
-    if (updates.afterSalesPhase !== undefined) dataUpdates.after_sales_phase = updates.afterSalesPhase;
+    if (updates.afterSalesPhase !== undefined) {
+      dataUpdates.after_sales_phase = updates.afterSalesPhase === null ? null : updates.afterSalesPhase;
+    }
+    if (updates.afterSalesStatus === null) dataUpdates.after_sales_status = null;
+    if (updates.afterSalesPhase === null) dataUpdates.after_sales_phase = null;
 
     const { error } = await supabase.from('leads').update(dataUpdates).eq('id', id);
 

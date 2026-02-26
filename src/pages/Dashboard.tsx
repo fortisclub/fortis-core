@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, LabelList } from 'recharts';
 import { TrendingUp, Users, Target, Activity, MoreHorizontal, ArrowUpRight, ArrowDownRight, Calendar, DollarSign, Wallet, ShoppingCart } from 'lucide-react';
 import { useApp } from '../store';
 import { LEAD_STATUS_MAP, PAID_PURCHASE_STATUSES } from '../constants';
@@ -40,6 +40,10 @@ export const Dashboard: React.FC = () => {
   }, [globalStats.ufCounts]);
 
   const totalLeadsPie = pieData.reduce((acc, curr) => acc + curr.value, 0);
+
+  const totalSalesBucketsCount = useMemo(() => {
+    return (globalStats.salesBuckets || []).reduce((acc: number, curr: any) => acc + (curr.count || 0), 0);
+  }, [globalStats.salesBuckets]);
 
   // Helpers para comparativo
   const calculateChange = (current: number, previous: number) => {
@@ -194,7 +198,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={globalStats.salesBuckets}>
+              <BarChart data={globalStats.salesBuckets} margin={{ top: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
                 <XAxis dataKey="range" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} />
@@ -203,7 +207,20 @@ export const Dashboard: React.FC = () => {
                   contentStyle={{ backgroundColor: '#141F28', border: '1px solid #2B373E', borderRadius: '12px' }}
                   itemStyle={{ color: '#588575', fontWeight: 'bold' }}
                 />
-                <Bar dataKey="count" fill="#588575" radius={[6, 6, 0, 0]} animationDuration={2000} />
+                <Bar dataKey="count" fill="#588575" radius={[6, 6, 0, 0]} animationDuration={2000}>
+                  <LabelList
+                    dataKey="count"
+                    position="top"
+                    fill="#a1a1aa"
+                    fontSize={11}
+                    fontWeight="bold"
+                    formatter={(value: number) => {
+                      if (!value) return '';
+                      const percentage = totalSalesBucketsCount > 0 ? ((Number(value) / totalSalesBucketsCount) * 100).toFixed(1).replace('.', ',') : "0,0";
+                      return `${value} (${percentage}%)`;
+                    }}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
