@@ -79,6 +79,12 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   return children;
 };
 
+const DashboardRoute = () => {
+  const { currentUser } = useApp();
+  if (currentUser?.role === 'VENDEDOR') return <Navigate to="/leads" replace />;
+  return <Dashboard />;
+};
+
 const App: React.FC = () => {
   return (
     <Router>
@@ -87,7 +93,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/login" element={<Login />} />
 
-            <Route path="/" element={<RequireAuth><AppLayout><Dashboard /></AppLayout></RequireAuth>} />
+            <Route path="/" element={<RequireAuth><AppLayout><DashboardRoute /></AppLayout></RequireAuth>} />
             <Route path="/leads" element={<RequireAuth><AppLayout><Leads /></AppLayout></RequireAuth>} />
             <Route path="/clientes" element={<RequireAuth><AppLayout><Clients /></AppLayout></RequireAuth>} />
             <Route path="/vendas" element={<RequireAuth><AppLayout><Sales /></AppLayout></RequireAuth>} />

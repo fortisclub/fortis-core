@@ -35,25 +35,27 @@ export const Sidebar: React.FC = () => {
       </div>
 
       <nav className={`flex-1 space-y-2 ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}>
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              title={isSidebarCollapsed ? item.label : ''}
-              className={`flex items-center gap-3 py-3 rounded-lg transition-all duration-200 group relative ${isActive
-                ? 'bg-fortis-brand/10 text-fortis-brand'
-                : 'text-fortis-mid hover:bg-fortis-surface hover:text-white'
-                } ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4'}`}
-            >
-              <item.icon size={20} className={`flex-shrink-0 ${item.color} ${isActive ? 'drop-shadow-[0_0_8px_currentColor]' : 'opacity-70 group-hover:opacity-100'} transition-all`} />
-              {!isSidebarCollapsed && <span className="font-semibold text-sm whitespace-nowrap overflow-hidden animate-in fade-in duration-300">{item.label}</span>}
-              {isActive && !isSidebarCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-fortis-brand shadow-[0_0_8px_rgba(88,133,117,1)]" />}
-              {isActive && isSidebarCollapsed && <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-fortis-brand rounded-l-full" />}
-            </Link>
-          );
-        })}
+        {navItems
+          .filter(item => !(item.path === '/' && currentUser?.role === 'VENDEDOR'))
+          .map((item) => {
+            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                title={isSidebarCollapsed ? item.label : ''}
+                className={`flex items-center gap-3 py-3 rounded-lg transition-all duration-200 group relative ${isActive
+                  ? 'bg-fortis-brand/10 text-fortis-brand'
+                  : 'text-fortis-mid hover:bg-fortis-surface hover:text-white'
+                  } ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4'}`}
+              >
+                <item.icon size={20} className={`flex-shrink-0 ${item.color} ${isActive ? 'drop-shadow-[0_0_8px_currentColor]' : 'opacity-70 group-hover:opacity-100'} transition-all`} />
+                {!isSidebarCollapsed && <span className="font-semibold text-sm whitespace-nowrap overflow-hidden animate-in fade-in duration-300">{item.label}</span>}
+                {isActive && !isSidebarCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-fortis-brand shadow-[0_0_8px_rgba(88,133,117,1)]" />}
+                {isActive && isSidebarCollapsed && <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-fortis-brand rounded-l-full" />}
+              </Link>
+            );
+          })}
       </nav>
 
       <div className={`mt-auto border-t border-fortis-surface space-y-4 ${isSidebarCollapsed ? 'p-2' : 'p-4'}`}>

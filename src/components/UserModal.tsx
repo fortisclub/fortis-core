@@ -13,8 +13,12 @@ interface UserModalProps {
 }
 
 export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, userId }) => {
-    const { users, updateUser, deleteUser, addNotification } = useApp();
+    const { users, updateUser, deleteUser, addNotification, currentUser } = useApp();
     const user = userId ? users.find(u => u.id === userId) : null;
+    const isSelf = currentUser?.id === user?.id;
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const canEdit = isAdmin || isSelf;
+
     const [isEditing, setIsEditing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +98,7 @@ export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, userId })
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {isEditing && (
+                        {isEditing && isAdmin && (
                             <button
                                 type="button"
                                 onClick={async () => {
@@ -109,7 +113,7 @@ export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, userId })
                                 <Trash2 size={20} />
                             </button>
                         )}
-                        {!isEditing && (
+                        {!isEditing && canEdit && (
                             <button
                                 onClick={() => setIsEditing(true)}
                                 className="p-2 hover:bg-fortis-surface rounded-full transition-colors text-fortis-brand"
@@ -196,7 +200,7 @@ export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, userId })
                                 <div className="relative">
                                     <select
                                         {...register('role', { required: true })}
-                                        disabled={!isEditing}
+                                        disabled={!isEditing || !isAdmin}
                                         className="w-full bg-fortis-panel border border-fortis-surface rounded-lg px-4 py-3 text-sm focus:border-fortis-brand outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold text-white appearance-none shadow-inner"
                                     >
                                         {Object.entries(ROLE_LABELS).map(([key, label]) => (

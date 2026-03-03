@@ -43,8 +43,7 @@ export const AFTER_SALES_PHASE_MAP: Record<AfterSalesPhase, { label: string; col
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrador',
-  VENDEDOR: 'Vendedor',
-  POS_VENDA: 'Pós-Venda'
+  VENDEDOR: 'Vendedor'
 };
 
 export const CHANNELS = ['WhatsApp', 'Instagram', 'Site', 'Indicação', 'Telefone'];

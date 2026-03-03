@@ -1045,6 +1045,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUser = async (id: string, updates: any) => {
+    // Se for o próprio usuário mudando o e-mail, atualiza no Auth também
+    if (currentUser?.id === id && updates.email && updates.email !== currentUser.email) {
+      const { error: authError } = await supabase.auth.updateUser({ email: updates.email });
+      if (authError) {
+        console.error('Erro ao atualizar auth:', authError);
+        addNotification('Erro', 'Não foi possível atualizar o e-mail de login. Verifique se o e-mail é válido.', 'ERROR');
+        return;
+      }
+    }
+
     const { error } = await supabase.from('profiles').update(updates).eq('id', id);
 
     if (error) {
@@ -1053,6 +1063,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+
+    if (currentUser?.id === id) {
+      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+    }
+
     addNotification('Atualizado', 'Usuário atualizado com sucesso.', 'SUCCESS');
   };
 
