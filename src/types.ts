@@ -11,6 +11,32 @@ export interface User {
   lastActivity: string;
 }
 
+export interface CadenceStage {
+  id: string;
+  name: string;
+  instructions?: string;
+  delayDays?: number;
+}
+
+export interface CadenceFlow {
+  id: string;
+  name: string;
+  description: string;
+  stages: CadenceStage[];
+  createdAt: string;
+}
+
+export interface CadenceTask {
+  id: string;
+  flowId: string;
+  stageId: string;
+  leadId: string;
+  dueDate: string | null;
+  completed: boolean;
+  instructions?: string;
+  lead?: import('./types').Lead;
+}
+
 export type LeadStatus = 'NOVO' | 'CONTATO' | 'FOLLOW_UP' | 'QUALIFICADO' | 'AGUARDANDO_PAGAMENTO' | 'GANHO' | 'PERDIDO' | 'PRIMEIRA_COMPRA' | 'RECORRENTE' | 'VIP' | 'INATIVO' | 'SEM_CLASSIFICACAO' | 'FINALIZADO';
 
 export type AfterSalesStatus = 'PRIMEIRA_COMPRA' | 'RECORRENTE' | 'VIP' | 'INATIVO';

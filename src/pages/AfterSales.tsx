@@ -377,6 +377,7 @@ export const AfterSales: React.FC = () => {
                     <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest">Tag's</th>
                     <SortableTableHeader label="Origem" sortKey="origin" sortConfig={sortConfig} requestSort={requestSort} />
                     <SortableTableHeader label="Canal" sortKey="channel" sortConfig={sortConfig} requestSort={requestSort} />
+                    <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest text-center">Pedidos</th>
                     <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
@@ -430,12 +431,17 @@ export const AfterSales: React.FC = () => {
                       <td className="px-6 py-4">
                         <span className="text-xs font-bold text-white/80">{client.channel}</span>
                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-xs font-bold text-white/80">
+                          {client.purchaseHistory && client.purchaseHistory.length > 0 ? client.purchaseHistory.length : '-'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-right"><MoreVertical size={16} className="ml-auto text-fortis-mid" /></td>
                     </tr>
                   ))}
                   {filteredAfterSales.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-fortis-mid">
+                      <td colSpan={9} className="px-6 py-12 text-center text-fortis-mid">
                         <div className="flex flex-col items-center gap-3">
                           <Search size={32} className="opacity-20" />
                           <p className="text-sm font-bold opacity-50">Nenhum cliente encontrado</p>

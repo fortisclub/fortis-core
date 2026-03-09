@@ -14,6 +14,9 @@ export const Topbar: React.FC = () => {
     if (location.pathname === '/leads') {
       return { label: 'Novo Lead', action: () => openModal('LEAD') };
     }
+    if (location.pathname === '/fluxos') {
+      return { label: 'Novo Fluxo', action: () => openModal('CADENCE_FLOW') };
+    }
     return null;
   };
 

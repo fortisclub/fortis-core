@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment } from './types';
+import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow } from './types';
 import { LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, CHANNELS as INITIAL_CHANNELS, ORIGINS as INITIAL_ORIGINS, PAID_PURCHASE_STATUSES, UNPAID_PURCHASE_STATUSES } from './constants';
 
 export interface CompanySettings {
@@ -22,10 +22,10 @@ interface AppContextType {
   channels: string[];
   origins: string[];
   notifications: AppNotification[];
-  activeModal: 'LEAD' | 'USER' | null;
+  activeModal: 'LEAD' | 'USER' | 'CADENCE_FLOW' | null;
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
-  openModal: (modal: 'LEAD' | 'USER') => void;
+  openModal: (modal: 'LEAD' | 'USER' | 'CADENCE_FLOW') => void;
   closeModal: () => void;
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'lastContactAt' | 'history'>) => Promise<void>;
   updateLead: (id: string, updates: Partial<Lead>) => Promise<void>;
@@ -94,7 +94,11 @@ interface AppContextType {
   companySettings: CompanySettings;
   updateSettings: (updates: Partial<CompanySettings>) => Promise<void>;
   fetchSettings: () => Promise<void>;
-
+  fetchCadenceFlows: () => Promise<void>;
+  cadenceFlows: CadenceFlow[];
+  addCadenceFlow: (flow: Omit<CadenceFlow, 'id' | 'createdAt'>) => Promise<string | null>;
+  updateCadenceFlow: (id: string, updates: Partial<CadenceFlow>) => Promise<void>;
+  deleteCadenceFlow: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -124,7 +128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [activeModal, setActiveModal] = useState<'LEAD' | 'USER' | null>(null);
+  const [activeModal, setActiveModal] = useState<'LEAD' | 'USER' | 'CADENCE_FLOW' | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [tags, setTags] = useState<ConfigTag[]>([]);
@@ -140,6 +144,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     address: 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP',
     logo_url: 'https://picsum.photos/seed/fortis/150'
   });
+
+  const [cadenceFlows, setCadenceFlows] = useState<CadenceFlow[]>([]);
+
+  const fetchCadenceFlows = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('cadence_flows')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setCadenceFlows(data.map(f => ({
+        id: f.id,
+        name: f.name,
+        description: f.description || '',
+        stages: f.stages || [],
+        createdAt: f.created_at
+      })));
+    }
+  }, []);
+
+  const addCadenceFlow = useCallback(async (flowData: Omit<CadenceFlow, 'id' | 'createdAt'>) => {
+    const { data, error } = await supabase
+      .from('cadence_flows')
+      .insert([{
+        name: flowData.name,
+        description: flowData.description,
+        stages: flowData.stages
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erro ao criar fluxo', error);
+      // Fallback para notificação se global estiver disponível
+      return null;
+    }
+
+    if (data) {
+      const newFlow: CadenceFlow = {
+        id: data.id,
+        name: data.name,
+        description: data.description || '',
+        stages: data.stages || [],
+        createdAt: data.created_at
+      };
+      setCadenceFlows(prev => [newFlow, ...prev]);
+      return newFlow.id;
+    }
+    return null;
+  }, []);
+
+  const updateCadenceFlow = useCallback(async (id: string, updates: Partial<CadenceFlow>) => {
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.stages !== undefined) dbUpdates.stages = updates.stages;
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from('cadence_flows')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao atualizar fluxo', error);
+      return;
+    }
+
+    setCadenceFlows(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
+  }, []);
+
+  const deleteCadenceFlow = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('cadence_flows')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao excluir fluxo', error);
+      return;
+    }
+
+    setCadenceFlows(prev => prev.filter(f => f.id !== id));
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
@@ -807,7 +895,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await fetchGlobalStats();
       await fetchTrafficInvestments();
       await fetchSettings();
-
+      await fetchCadenceFlows();
 
       // Tags, Channels, Origins
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -825,7 +913,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [authUser?.id, loading]); // Executa quando o user mudar ou terminar de carregar auth
 
   const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
-  const openModal = (modal: 'LEAD' | 'USER') => setActiveModal(modal);
+  const openModal = (modal: 'LEAD' | 'USER' | 'CADENCE_FLOW') => setActiveModal(modal);
   const closeModal = () => setActiveModal(null);
 
   const addNotification = useCallback((title: string, message: string, type: AppNotification['type']) => {
@@ -1091,7 +1179,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addTag, updateTag, removeTag, addChannel, updateChannel, removeChannel, addOrigin, updateOrigin, removeOrigin, fetchLeads, fetchUsers, fetchLeadHistory, fetchGlobalStats, fetchTrafficInvestments,
       globalStats, hasMore, isLoadingMore, loadMore, fetchAllClients, trafficInvestments,
       filters, setFilters,
-      companySettings, updateSettings, fetchSettings
+      companySettings, updateSettings, fetchSettings,
+      cadenceFlows, addCadenceFlow, updateCadenceFlow, deleteCadenceFlow, fetchCadenceFlows
     }}>
 
       {children}

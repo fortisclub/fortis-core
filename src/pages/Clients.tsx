@@ -224,6 +224,7 @@ export const Clients: React.FC = () => {
                                 <SortableTableHeader label="Canal" sortKey="channel" sortConfig={sortConfig} requestSort={requestSort} />
                                 <SortableTableHeader label="Cidade" sortKey="city" sortConfig={sortConfig} requestSort={requestSort} />
                                 <SortableTableHeader label="UF" sortKey="uf" sortConfig={sortConfig} requestSort={requestSort} />
+                                <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest text-center">Pedidos</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-fortis-surface">
@@ -273,11 +274,16 @@ export const Clients: React.FC = () => {
                                             {client.uf}
                                         </span>
                                     </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="text-xs font-bold text-white/80">
+                                            {client.purchaseHistory && client.purchaseHistory.length > 0 ? client.purchaseHistory.length : '-'}
+                                        </span>
+                                    </td>
                                 </tr>
                             ))}
                             {filteredClients.length === 0 && !isLoadingMore && (
                                 <tr>
-                                    <td colSpan={9} className="px-6 py-12 text-center text-fortis-mid">
+                                    <td colSpan={10} className="px-6 py-12 text-center text-fortis-mid">
                                         <div className="flex flex-col items-center gap-3">
                                             <Search size={32} className="opacity-20" />
                                             <p className="text-sm font-bold opacity-50">Nenhum cliente encontrado</p>
