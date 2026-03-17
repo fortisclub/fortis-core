@@ -88,6 +88,12 @@ const DashboardRoute = () => {
   return <Dashboard />;
 };
 
+const FinanceRoute = () => {
+  const { currentUser } = useApp();
+  if (currentUser?.role === 'VENDEDOR') return <Navigate to="/leads" replace />;
+  return <Finance />;
+};
+
 const App: React.FC = () => {
   return (
     <Router>
@@ -100,7 +106,7 @@ const App: React.FC = () => {
             <Route path="/leads" element={<RequireAuth><AppLayout><Leads /></AppLayout></RequireAuth>} />
             <Route path="/clientes" element={<RequireAuth><AppLayout><Clients /></AppLayout></RequireAuth>} />
             <Route path="/vendas" element={<RequireAuth><AppLayout><Sales /></AppLayout></RequireAuth>} />
-            <Route path="/financeiro" element={<RequireAuth><AppLayout><Finance /></AppLayout></RequireAuth>} />
+            <Route path="/financeiro" element={<RequireAuth><AppLayout><FinanceRoute /></AppLayout></RequireAuth>} />
             <Route path="/pos-venda" element={<RequireAuth><AppLayout><AfterSales /></AppLayout></RequireAuth>} />
             <Route path="/fluxos" element={<RequireAuth><AppLayout><Flows /></AppLayout></RequireAuth>} />
             <Route path="/fluxos/:id" element={<RequireAuth><AppLayout><FlowDetails /></AppLayout></RequireAuth>} />
