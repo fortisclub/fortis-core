@@ -510,17 +510,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // === ATUAIS / PERÍODO ===
     const tInv = Number(invRpcRes.data) || 0;
-    const purchasesPeriod = purchasesPeriodRes.data || [];
+    const purchasesPeriod = (purchasesPeriodRes.data || []).filter(p => PAID_PURCHASE_STATUSES.includes(p.status || 'Pago'));
+
+    // Faturamento e Contagem específicos de TRÁFEGO PAGO (para CAC/ROAS/LTV)
     const pVal = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').reduce((acc, p) => acc + Number(p.value), 0) || 0;
+    const paidPurchasesCount = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').length || 0;
+
+    // Faturamento e Contagem GLOBAIS (para os cards principais de Faturamento e Compras)
     const totalPeriodVal = purchasesPeriod.reduce((acc, p) => acc + Number(p.value), 0) || 0;
-    const totalPurchasesCount = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').length || 0;
+    const totalPurchasesCount = purchasesPeriod.length || 0;
 
     // === ANTERIORES / PERÍODO ===
     const prevTInv = Number(prevInvRpcRes.data) || 0;
-    const prevPurchasesPeriodResult = prevPurchasesPeriodRes.data || [];
+    const prevPurchasesPeriodResult = (prevPurchasesPeriodRes.data || []).filter(p => PAID_PURCHASE_STATUSES.includes(p.status || 'Pago'));
     const prevPVal = prevPurchasesPeriodResult.filter(p => p.lead_origin === 'Tráfego pago').reduce((acc, p) => acc + Number(p.value), 0) || 0;
+
     const prevTotalPeriodVal = prevPurchasesPeriodResult.reduce((acc, p) => acc + Number(p.value), 0) || 0;
-    const prevTotalPurchasesCount = prevPurchasesPeriodResult.filter(p => p.lead_origin === 'Tráfego pago').length || 0;
+    const prevTotalPurchasesCount = prevPurchasesPeriodResult.length || 0;
 
     // === GLOBAIS / ALL-TIME ===
     const allTimePurchases = allPurchasesRes.data || [];
