@@ -41,11 +41,20 @@ export const Login: React.FC = () => {
                     }
                 });
                 if (error) throw error;
-                if (data.user && data.session) {
-                    // Conta criada e logada automaticamente
-                } else if (data.user && !data.session) {
-                    setMessage("Conta criada! Verifique seu e-mail para confirmar (se necessário) ou faça login.");
-                    setIsSignUp(false);
+                if (data.user) {
+                    // Registra pendência de aprovação para os admins
+                    await supabase.from('pending_approvals').insert({
+                        user_id: data.user.id,
+                        user_name: name,
+                        user_email: email,
+                    });
+
+                    if (data.session) {
+                        // Conta criada e logada automaticamente — aguardando aprovação
+                    } else {
+                        setMessage("Conta criada! Aguarde a aprovação de um administrador para acessar o sistema.");
+                        setIsSignUp(false);
+                    }
                 }
             } else {
                 const { error } = await supabase.auth.signInWithPassword({

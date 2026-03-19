@@ -414,44 +414,55 @@ export const Flows: React.FC = () => {
                                                         </div>
 
                                                         <div className="md:col-span-2 flex flex-col justify-between">
-                                                            <div>
-                                                                <label className="block text-[9px] font-black text-fortis-mid uppercase tracking-[0.2em] mb-1.5 opacity-60">Tempo de Espera</label>
-                                                                <div className="flex p-1 bg-fortis-dark/50 border border-fortis-surface/50 rounded-xl gap-0.5">
-                                                                    <button
-                                                                        onClick={() => updateStage(index, { delayDays: 0 })}
-                                                                        className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${stage.delayDays === 0 ? 'bg-fortis-brand text-white shadow-lg shadow-fortis-brand/20' : 'text-fortis-mid hover:text-white'}`}
-                                                                    >
-                                                                        Imediato
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => updateStage(index, { delayDays: stage.delayDays || 1 })}
-                                                                        className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${stage.delayDays !== 0 ? 'bg-fortis-surface text-white' : 'text-fortis-mid hover:text-white'}`}
-                                                                    >
-                                                                        Agendar
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="mt-2 min-h-[50px] flex flex-col justify-end">
-                                                                {stage.delayDays !== 0 && (
-                                                                    <div className="relative animate-in slide-in-from-top-1 duration-200">
-                                                                        <input
-                                                                            type="number"
-                                                                            min="1"
-                                                                            value={stage.delayDays}
-                                                                            onChange={(e) => updateStage(index, { delayDays: parseInt(e.target.value) || 1 })}
-                                                                            className="w-full bg-fortis-dark border border-fortis-surface/50 rounded-xl pl-3 pr-10 py-2 text-xs text-white focus:outline-none focus:border-fortis-brand/50 transition-all"
-                                                                        />
-                                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-fortis-mid uppercase">dias</span>
+                                                            {index === 0 ? (
+                                                                <>
+                                                                    <div>
+                                                                        <label className="block text-[9px] font-black text-fortis-mid uppercase tracking-[0.2em] mb-1.5 opacity-60">Tempo de Espera</label>
+                                                                        <div className="flex p-1 bg-fortis-dark/50 border border-fortis-surface/50 rounded-xl gap-0.5">
+                                                                            <button
+                                                                                onClick={() => updateStage(index, { delayDays: 0 })}
+                                                                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${stage.delayDays === 0 ? 'bg-fortis-brand text-white shadow-lg shadow-fortis-brand/20' : 'text-fortis-mid hover:text-white'}`}
+                                                                            >
+                                                                                Imediato
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => updateStage(index, { delayDays: stage.delayDays || 1 })}
+                                                                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${stage.delayDays !== 0 ? 'bg-fortis-surface text-white' : 'text-fortis-mid hover:text-white'}`}
+                                                                            >
+                                                                                Agendar
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
-                                                                )}
 
-                                                                <p className="text-[9px] text-fortis-mid mt-1 px-1 leading-tight">
-                                                                    {stage.delayDays === 0
-                                                                        ? 'Ação imediata.'
-                                                                        : `Aguardará ${stage.delayDays} ${stage.delayDays === 1 ? 'dia' : 'dias'}.`}
-                                                                </p>
-                                                            </div>
+                                                                    <div className="mt-2 min-h-[50px] flex flex-col justify-end">
+                                                                        {stage.delayDays !== 0 && (
+                                                                            <div className="relative animate-in slide-in-from-top-1 duration-200">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="1"
+                                                                                    value={stage.delayDays}
+                                                                                    onChange={(e) => updateStage(index, { delayDays: parseInt(e.target.value) || 1 })}
+                                                                                    className="w-full bg-fortis-dark border border-fortis-surface/50 rounded-xl pl-3 pr-10 py-2 text-xs text-white focus:outline-none focus:border-fortis-brand/50 transition-all"
+                                                                                />
+                                                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-fortis-mid uppercase">dias</span>
+                                                                            </div>
+                                                                        )}
+
+                                                                        <p className="text-[9px] text-fortis-mid mt-1 px-1 leading-tight">
+                                                                            {stage.delayDays === 0
+                                                                                ? 'Ação imediata.'
+                                                                                : `Aguardará ${stage.delayDays} ${stage.delayDays === 1 ? 'dia' : 'dias'}.`}
+                                                                        </p>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <div className="flex flex-col justify-center h-full">
+                                                                    <label className="block text-[9px] font-black text-fortis-mid uppercase tracking-[0.2em] mb-1.5 opacity-60">Prazo</label>
+                                                                    <p className="text-[9px] text-fortis-mid/60 leading-tight px-1">
+                                                                        O prazo será definido manualmente no card do cliente.
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

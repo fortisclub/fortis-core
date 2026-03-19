@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow } from './types';
+import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow, PendingApproval } from './types';
 import { LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, CHANNELS as INITIAL_CHANNELS, ORIGINS as INITIAL_ORIGINS, PAID_PURCHASE_STATUSES, UNPAID_PURCHASE_STATUSES } from './constants';
 
 export interface CompanySettings {
@@ -99,6 +99,10 @@ interface AppContextType {
   addCadenceFlow: (flow: Omit<CadenceFlow, 'id' | 'createdAt'>) => Promise<string | null>;
   updateCadenceFlow: (id: string, updates: Partial<CadenceFlow>) => Promise<void>;
   deleteCadenceFlow: (id: string) => Promise<void>;
+  pendingApprovals: PendingApproval[];
+  fetchPendingApprovals: () => Promise<void>;
+  approveUser: (approvalId: string, userId: string) => Promise<void>;
+  rejectUser: (approvalId: string, userId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -683,7 +687,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone: u.phone,
         role: u.role,
         avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=588575&color=fff`,
-        lastActivity: u.last_activity
+        lastActivity: u.last_activity,
+        approved: u.approved
       }));
       setUsers(mapped);
 
@@ -694,6 +699,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
   }, [authUser]);
+
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+
+  const fetchPendingApprovals = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('pending_approvals')
+      .select('*')
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      setPendingApprovals(data.map(r => ({
+        id: r.id,
+        userId: r.user_id,
+        userName: r.user_name,
+        userEmail: r.user_email,
+        createdAt: r.created_at,
+        resolvedAt: r.resolved_at,
+        resolvedBy: r.resolved_by,
+        status: r.status as PendingApproval['status'],
+      })));
+    }
+  }, []);
+
+  const approveUser = useCallback(async (approvalId: string, userId: string) => {
+    await supabase.from('profiles').update({ approved: true }).eq('id', userId);
+    await supabase.from('pending_approvals').update({
+      status: 'APPROVED',
+      resolved_at: new Date().toISOString(),
+      resolved_by: currentUser?.id,
+    }).eq('id', approvalId);
+    setPendingApprovals(prev => prev.filter(a => a.id !== approvalId));
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, approved: true } : u));
+  }, [currentUser]);
+
+  const rejectUser = useCallback(async (approvalId: string, userId: string) => {
+    await supabase.from('profiles').update({ approved: false }).eq('id', userId);
+    await supabase.from('pending_approvals').update({
+      status: 'REJECTED',
+      resolved_at: new Date().toISOString(),
+      resolved_by: currentUser?.id,
+    }).eq('id', approvalId);
+    setPendingApprovals(prev => prev.filter(a => a.id !== approvalId));
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, approved: false } : u));
+  }, [currentUser]);
 
   const fetchLeads = useCallback(async (isExpanding = false) => {
     setIsLoadingMore(true);
@@ -902,6 +951,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await fetchTrafficInvestments();
       await fetchSettings();
       await fetchCadenceFlows();
+      await fetchPendingApprovals();
 
       // Tags, Channels, Origins
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -1186,7 +1236,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       globalStats, hasMore, isLoadingMore, loadMore, fetchAllClients, trafficInvestments,
       filters, setFilters,
       companySettings, updateSettings, fetchSettings,
-      cadenceFlows, addCadenceFlow, updateCadenceFlow, deleteCadenceFlow, fetchCadenceFlows
+      cadenceFlows, addCadenceFlow, updateCadenceFlow, deleteCadenceFlow, fetchCadenceFlows,
+      pendingApprovals, fetchPendingApprovals, approveUser, rejectUser
     }}>
 
       {children}

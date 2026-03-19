@@ -9,6 +9,18 @@ export interface User {
   role: UserRole;
   avatar: string;
   lastActivity: string;
+  approved?: boolean | null;
+}
+
+export interface PendingApproval {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 export interface CadenceStage {

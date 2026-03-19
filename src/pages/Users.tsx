@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { MoreVertical, Shield, Calendar } from 'lucide-react';
+import { MoreVertical, Shield, Calendar, UserCheck, UserX, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useApp } from '../store';
 import { ROLE_LABELS } from '../constants';
 import { UserModal } from '../components/UserModal';
@@ -9,7 +9,7 @@ import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
 
 export const UsersPage: React.FC = () => {
-  const { users } = useApp();
+  const { users, currentUser, pendingApprovals, approveUser, rejectUser } = useApp();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,6 +24,8 @@ export const UsersPage: React.FC = () => {
 
   const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
 
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   return (
     <>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -33,6 +35,57 @@ export const UsersPage: React.FC = () => {
             <p className="text-fortis-mid text-sm font-semibold">Controle de acessos e permissões (RBAC).</p>
           </div>
         </div>
+
+        {/* ── Aprovações Pendentes (somente ADMIN) ── */}
+        {isAdmin && pendingApprovals.length > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl overflow-hidden shadow-lg">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-amber-500/20 bg-amber-500/10">
+              <AlertTriangle size={18} className="text-amber-400 shrink-0" />
+              <div>
+                <h3 className="font-bold text-white text-sm">Aprovações Pendentes</h3>
+                <p className="text-amber-400/80 text-xs font-medium">
+                  {pendingApprovals.length} {pendingApprovals.length === 1 ? 'novo usuário aguarda' : 'novos usuários aguardam'} sua aprovação.
+                </p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-amber-500/10">
+              {pendingApprovals.map(approval => (
+                <div key={approval.id} className="flex items-center gap-4 px-6 py-4 hover:bg-amber-500/5 transition-colors">
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(approval.userName)}&background=d97706&color=fff`}
+                    className="w-10 h-10 rounded-xl border border-amber-500/30 shrink-0"
+                    alt=""
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white text-sm truncate">{approval.userName}</p>
+                    <p className="text-xs text-fortis-mid truncate">{approval.userEmail}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-400 shrink-0">
+                    <Clock size={12} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                      {new Date(approval.createdAt).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => approveUser(approval.id, approval.userId)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg text-xs font-bold transition-all"
+                    >
+                      <CheckCircle size={13} /> Aprovar
+                    </button>
+                    <button
+                      onClick={() => rejectUser(approval.id, approval.userId)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 rounded-lg text-xs font-bold transition-all"
+                    >
+                      <XCircle size={13} /> Rejeitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 bg-fortis-panel border border-fortis-surface rounded-2xl overflow-hidden shadow-xl custom-scrollbar overflow-x-auto">
           <table className="w-full text-left min-w-[800px]">
@@ -55,7 +108,24 @@ export const UsersPage: React.FC = () => {
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover border border-fortis-surface group-hover:border-fortis-brand transition-all" alt="" />
+                      <div className="relative">
+                        <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover border border-fortis-surface group-hover:border-fortis-brand transition-all" alt="" />
+                        {user.approved === false && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center" title="Rejeitado">
+                            <XCircle size={10} className="text-white" />
+                          </span>
+                        )}
+                        {user.approved === null && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center animate-pulse" title="Aguardando aprovação">
+                            <Clock size={10} className="text-white" />
+                          </span>
+                        )}
+                        {user.approved === true && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center" title="Aprovado">
+                            <UserCheck size={10} className="text-white" />
+                          </span>
+                        )}
+                      </div>
                       <span className="text-sm font-bold group-hover:text-fortis-brand transition-colors whitespace-nowrap">{user.name}</span>
                     </div>
                   </td>

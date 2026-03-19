@@ -17,7 +17,7 @@ const navItems = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { currentUser, isSidebarCollapsed, toggleSidebar, companySettings } = useApp();
+  const { currentUser, isSidebarCollapsed, toggleSidebar, companySettings, pendingApprovals } = useApp();
   const { signOut } = useAuth();
 
   const firstName = currentUser?.name.split(' ')[0] || '';
@@ -60,6 +60,12 @@ export const Sidebar: React.FC = () => {
                 {!isSidebarCollapsed && <span className="font-semibold text-sm whitespace-nowrap overflow-hidden animate-in fade-in duration-300">{item.label}</span>}
                 {isActive && !isSidebarCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-fortis-brand shadow-[0_0_8px_rgba(88,133,117,1)]" />}
                 {isActive && isSidebarCollapsed && <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-fortis-brand rounded-l-full" />}
+                {/* Badge de aprovações pendentes — somente admin + item Usuários */}
+                {item.path === '/usuarios' && currentUser?.role === 'ADMIN' && pendingApprovals.length > 0 && (
+                  <span className={`${isSidebarCollapsed ? 'absolute -top-1 -right-1' : 'ml-auto'} min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-black rounded-full px-1 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]`}>
+                    {pendingApprovals.length}
+                  </span>
+                )}
               </Link>
             );
           })}

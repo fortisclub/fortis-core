@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, List, KanbanSquare as KanbanIcon, Calendar as CalendarIcon,
-    ChevronDown, ChevronRight, Workflow, Plus, Search, Filter, Check, Clock, X
+    ChevronDown, ChevronRight, Workflow, Plus, Search, Filter, Check, Clock, X, Trash2
 } from 'lucide-react';
 import { useApp } from '../store';
 import { Lead, AfterSalesStatus, CadenceTask, LeadStatus } from '../types';
@@ -14,7 +14,7 @@ type ViewMode = 'LIST' | 'KANBAN' | 'CALENDAR';
 export const FlowDetails: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { cadenceFlows, updateCadenceFlow, leads, users } = useApp();
+    const { cadenceFlows, updateCadenceFlow, leads, users, currentUser } = useApp();
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
 
     const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -31,6 +31,11 @@ export const FlowDetails: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<CadenceTask | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [taskInstructions, setTaskInstructions] = useState('');
+
+    // Advance-stage modal
+    const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
+    const [taskToAdvance, setTaskToAdvance] = useState<string | null>(null);
+    const [advanceDueDate, setAdvanceDueDate] = useState('');
 
     // Calendar view states
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -84,7 +89,38 @@ export const FlowDetails: React.FC = () => {
         }
     };
 
-    const completeTask = async (taskId: string) => {
+    // Opens modal to pick due date before advancing; completes directly if last stage
+    const handleAdvanceStage = (taskId: string, fromModal = false) => {
+        if (!flow) return;
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const currentIndex = flow.stages.findIndex(s => s.id === task.stageId);
+        const isLastStage = currentIndex < 0 || currentIndex >= flow.stages.length - 1;
+
+        if (isLastStage) {
+            // Just complete the task — no next stage
+            completeTask(taskId, null);
+            if (fromModal) setIsTaskModalOpen(false);
+        } else {
+            // Show date picker modal
+            setTaskToAdvance(taskId);
+            setAdvanceDueDate('');
+            setIsAdvanceModalOpen(true);
+            if (fromModal) setIsTaskModalOpen(false);
+        }
+    };
+
+    const confirmAdvanceStage = async () => {
+        if (!taskToAdvance || !flow) return;
+        const isoDate = advanceDueDate ? new Date(advanceDueDate).toISOString() : null;
+        await completeTask(taskToAdvance, isoDate);
+        setIsAdvanceModalOpen(false);
+        setTaskToAdvance(null);
+        setAdvanceDueDate('');
+    };
+
+    const completeTask = async (taskId: string, dueDate: string | null) => {
         if (!flow) return;
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
@@ -94,22 +130,16 @@ export const FlowDetails: React.FC = () => {
             const nextStage = flow.stages[currentIndex + 1];
             const nextStageId = nextStage.id;
 
-            // Calculate new due date based on next stage delay
-            const delayDays = nextStage.delayDays || 0;
-            const newDueDate = new Date();
-            newDueDate.setDate(newDueDate.getDate() + delayDays);
-            const newDueDateStr = newDueDate.toISOString();
-
             const { error } = await supabase
                 .from('cadence_tasks')
                 .update({
                     stage_id: nextStageId,
-                    due_date: newDueDateStr
+                    due_date: dueDate
                 })
                 .eq('id', taskId);
 
             if (!error) {
-                setTasks(prev => prev.map(t => t.id === taskId ? { ...t, stageId: nextStageId, dueDate: newDueDateStr } : t));
+                setTasks(prev => prev.map(t => t.id === taskId ? { ...t, stageId: nextStageId, dueDate } : t));
             }
         } else {
             const { error } = await supabase
@@ -127,6 +157,18 @@ export const FlowDetails: React.FC = () => {
         setSelectedTask(task);
         setTaskInstructions(task.instructions || '');
         setIsTaskModalOpen(true);
+    };
+
+    const deleteTask = async (taskId: string) => {
+        if (!confirm('Tem certeza que deseja excluir esta tarefa do fluxo?')) return;
+        const { error } = await supabase
+            .from('cadence_tasks')
+            .delete()
+            .eq('id', taskId);
+        if (!error) {
+            setTasks(prev => prev.filter(t => t.id !== taskId));
+            setIsTaskModalOpen(false);
+        }
     };
 
     const handleSaveTaskInstructions = async () => {
@@ -275,7 +317,7 @@ export const FlowDetails: React.FC = () => {
                     </div>
 
                     <button
-                        onClick={(e) => { e.stopPropagation(); completeTask(task.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleAdvanceStage(task.id); }}
                         className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm shrink-0"
                         title="Concluir Etapa"
                     >
@@ -490,7 +532,7 @@ export const FlowDetails: React.FC = () => {
                                             <div className="flex justify-between items-start">
                                                 <p className="font-bold text-sm text-white truncate pr-2 tracking-tight">{lead.name}</p>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); completeTask(task.id); }}
+                                                    onClick={(e) => { e.stopPropagation(); handleAdvanceStage(task.id); }}
                                                     className="p-1.5 -mt-1 -mr-1 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-sm shrink-0"
                                                     title="Concluir Etapa"
                                                 >
@@ -522,14 +564,19 @@ export const FlowDetails: React.FC = () => {
                                             <div className="flex justify-between items-center mt-1">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] text-fortis-mid font-black uppercase tracking-widest">{lead.uf || '-'}</span>
-                                                    {task.dueDate && (
-                                                        <div className={`flex items-center gap-1.5 ${new Date(task.dueDate) < new Date(new Date().setHours(0, 0, 0, 0)) ? 'text-red-400' : 'text-fortis-mid'}`}>
-                                                            <Clock size={10} className="stroke-[3]" />
-                                                            <span className="text-[9px] font-black tracking-wider uppercase">
-                                                                {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    {task.dueDate && (() => {
+                                                        const taskDateStr = task.dueDate.split('T')[0];
+                                                        const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD local
+                                                        const isOverdue = taskDateStr < todayStr;
+                                                        return (
+                                                            <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-400' : 'text-fortis-mid'}`}>
+                                                                <Clock size={10} className="stroke-[3]" />
+                                                                <span className="text-[9px] font-black tracking-wider uppercase">
+                                                                    {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <img
                                                     src={users.find(u => u.id === lead.responsibleId)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(lead.name)}&background=588575&color=fff`}
@@ -876,27 +923,102 @@ export const FlowDetails: React.FC = () => {
 
                         </div>
 
-                        <div className="flex justify-end gap-3 mt-8">
-                            <button
-                                type="button"
-                                onClick={() => setIsTaskModalOpen(false)}
-                                className="px-6 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors"
-                            >
-                                Fechar
-                            </button>
-                            <button
-                                onClick={() => {
-                                    completeTask(selectedTask.id);
-                                    setIsTaskModalOpen(false);
-                                }}
-                                className="px-6 py-2.5 bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
-                            >
-                                <Check size={18} className="stroke-[3]" /> Concluir Etapa
-                            </button>
+                        <div className="flex items-center justify-between mt-8">
+                            {/* Botão excluir — somente ADMIN */}
+                            {currentUser?.role === 'ADMIN' ? (
+                                <button
+                                    type="button"
+                                    onClick={() => deleteTask(selectedTask.id)}
+                                    className="flex items-center gap-2 px-4 py-2.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 font-bold rounded-xl transition-all text-sm"
+                                    title="Excluir tarefa do fluxo"
+                                >
+                                    <Trash2 size={15} /> Excluir
+                                </button>
+                            ) : <div />}
+
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsTaskModalOpen(false)}
+                                    className="px-6 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors"
+                                >
+                                    Fechar
+                                </button>
+                                <button
+                                    onClick={() => handleAdvanceStage(selectedTask.id, true)}
+                                    className="px-6 py-2.5 bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
+                                >
+                                    <Check size={18} className="stroke-[3]" /> Concluir Etapa
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+            {/* Modal: Selecionar prazo da próxima etapa */}
+            {isAdvanceModalOpen && taskToAdvance && (() => {
+                const task = tasks.find(t => t.id === taskToAdvance);
+                const currentIndex = flow?.stages.findIndex(s => s.id === task?.stageId) ?? -1;
+                const nextStage = flow?.stages[currentIndex + 1];
+                return (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+                        <div className="bg-fortis-panel border border-fortis-surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Header */}
+                            <div className="px-6 pt-6 pb-4 border-b border-fortis-surface/50">
+                                <div className="flex items-center justify-between mb-1">
+                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <Check size={18} className="text-emerald-400" />
+                                        Avançar Etapa
+                                    </h2>
+                                    <button
+                                        onClick={() => setIsAdvanceModalOpen(false)}
+                                        className="text-fortis-mid hover:text-white p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                                {nextStage && (
+                                    <p className="text-xs text-fortis-mid">
+                                        Movendo para: <span className="text-cyan-400 font-bold">{nextStage.name}</span>
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Body */}
+                            <div className="px-6 py-5 space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-fortis-mid mb-2 uppercase tracking-wider">
+                                        Prazo para esta etapa
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={advanceDueDate}
+                                        onChange={e => setAdvanceDueDate(e.target.value)}
+                                        className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                    />
+                                    <p className="text-[10px] text-fortis-mid/60 mt-1.5">Deixe em branco para definir depois.</p>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 pb-6 flex gap-3">
+                                <button
+                                    onClick={() => setIsAdvanceModalOpen(false)}
+                                    className="flex-1 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors text-sm"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmAdvanceStage}
+                                    className="flex-1 py-2.5 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20 text-sm flex items-center justify-center gap-2"
+                                >
+                                    <Check size={16} className="stroke-[3]" /> Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
