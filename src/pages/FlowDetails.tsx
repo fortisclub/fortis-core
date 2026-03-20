@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, List, KanbanSquare as KanbanIcon, Calendar as CalendarIcon,
-    ChevronDown, ChevronRight, Workflow, Plus, Search, Filter, Check, Clock, X, Trash2
+    ChevronDown, ChevronRight, Workflow, Plus, Search, Filter, Check, Clock, X, Trash2, ChevronLeft
 } from 'lucide-react';
 import { useApp } from '../store';
 import { Lead, AfterSalesStatus, CadenceTask, LeadStatus } from '../types';
@@ -36,6 +36,35 @@ export const FlowDetails: React.FC = () => {
     const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
     const [taskToAdvance, setTaskToAdvance] = useState<string | null>(null);
     const [advanceDueDate, setAdvanceDueDate] = useState('');
+
+    // Calendar state for advance modal
+    const [calendarDate, setCalendarDate] = useState(() => {
+        const now = new Date();
+        return { year: now.getFullYear(), month: now.getMonth() };
+    });
+
+    const calendarMonthNames = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+    const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+    const goCalendarPrev = () => setCalendarDate(prev => {
+        if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+        return { year: prev.year, month: prev.month - 1 };
+    });
+    const goCalendarNext = () => setCalendarDate(prev => {
+        if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+        return { year: prev.year, month: prev.month + 1 };
+    });
+
+    const formatCalendarDay = (year: number, month: number, day: number) => {
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        return `${year}-${mm}-${dd}`;
+    };
 
     // Calendar view states
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -106,6 +135,7 @@ export const FlowDetails: React.FC = () => {
             // Show date picker modal
             setTaskToAdvance(taskId);
             setAdvanceDueDate('');
+            setCalendarDate({ year: new Date().getFullYear(), month: new Date().getMonth() });
             setIsAdvanceModalOpen(true);
             if (fromModal) setIsTaskModalOpen(false);
         }
@@ -985,18 +1015,92 @@ export const FlowDetails: React.FC = () => {
                             </div>
 
                             {/* Body */}
-                            <div className="px-6 py-5 space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-fortis-mid mb-2 uppercase tracking-wider">
-                                        Prazo para esta etapa
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={advanceDueDate}
-                                        onChange={e => setAdvanceDueDate(e.target.value)}
-                                        className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                                    />
-                                    <p className="text-[10px] text-fortis-mid/60 mt-1.5">Deixe em branco para definir depois.</p>
+                            <div className="px-6 py-5 space-y-3">
+                                <label className="block text-xs font-bold text-fortis-mid mb-1 uppercase tracking-wider">
+                                    Prazo para esta etapa
+                                </label>
+
+                                {/* Calendar widget */}
+                                <div className="bg-fortis-dark border border-fortis-surface rounded-2xl overflow-hidden">
+                                    {/* Calendar header */}
+                                    <div className="flex items-center justify-between px-4 py-3 border-b border-fortis-surface/50">
+                                        <button
+                                            type="button"
+                                            onClick={goCalendarPrev}
+                                            className="p-1.5 rounded-lg text-fortis-mid hover:text-white hover:bg-white/5 transition-colors"
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <span className="text-sm font-bold text-white">
+                                            {calendarMonthNames[calendarDate.month]} {calendarDate.year}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={goCalendarNext}
+                                            className="p-1.5 rounded-lg text-fortis-mid hover:text-white hover:bg-white/5 transition-colors"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+
+                                    {/* Day names */}
+                                    <div className="grid grid-cols-7 px-2 pt-2">
+                                        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                                            <div key={i} className="text-center text-[10px] font-black text-fortis-mid/50 uppercase py-1">
+                                                {d}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Days grid */}
+                                    <div className="grid grid-cols-7 px-2 pb-3 gap-y-0.5">
+                                        {/* Empty cells for offset */}
+                                        {Array.from({ length: getFirstDayOfMonth(calendarDate.year, calendarDate.month) }).map((_, i) => (
+                                            <div key={`empty-${i}`} />
+                                        ))}
+                                        {Array.from({ length: getDaysInMonth(calendarDate.year, calendarDate.month) }, (_, i) => i + 1).map(day => {
+                                            const dateStr = formatCalendarDay(calendarDate.year, calendarDate.month, day);
+                                            const todayStr = new Date().toLocaleDateString('sv-SE');
+                                            const isToday = dateStr === todayStr;
+                                            const isSelected = dateStr === advanceDueDate;
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => setAdvanceDueDate(isSelected ? '' : dateStr)}
+                                                    className={`
+                                                        w-full aspect-square flex items-center justify-center rounded-lg text-[12px] font-bold transition-all
+                                                        ${isSelected
+                                                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                                                            : isToday
+                                                                ? 'bg-fortis-brand/20 text-fortis-brand ring-1 ring-fortis-brand/40'
+                                                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                                        }
+                                                    `}
+                                                >
+                                                    {day}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Selected date display */}
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] text-fortis-mid/60">
+                                        {advanceDueDate
+                                            ? `Selecionado: ${new Date(advanceDueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`
+                                            : 'Deixe em branco para definir depois.'}
+                                    </p>
+                                    {advanceDueDate && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setAdvanceDueDate('')}
+                                            className="text-[10px] text-fortis-mid/60 hover:text-red-400 transition-colors font-bold flex items-center gap-1"
+                                        >
+                                            <X size={10} /> Limpar
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
