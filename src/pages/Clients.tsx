@@ -213,7 +213,7 @@ export const Clients: React.FC = () => {
 
                 <div className="flex-1 bg-fortis-panel border border-fortis-surface rounded-2xl overflow-auto shadow-xl custom-scrollbar min-h-0">
                     <table className="w-full text-left min-w-[1200px]">
-                        <thead className="bg-fortis-dark/50">
+                        <thead className="bg-fortis-dark/50 whitespace-nowrap">
                             <tr>
                                 <SortableTableHeader label="ID do cliente" sortKey="id" sortConfig={sortConfig} requestSort={requestSort} className="whitespace-nowrap" />
                                 <SortableTableHeader label="Nome do Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} />
@@ -231,7 +231,7 @@ export const Clients: React.FC = () => {
                             {paginatedClients.map(client => (
                                 <tr
                                     key={client.id}
-                                    className="hover:bg-fortis-surface/20 cursor-pointer transition-colors group"
+                                    className="hover:bg-fortis-surface/20 cursor-pointer transition-colors group whitespace-nowrap"
                                     onClick={() => setSelectedClientId(client.id)}
                                 >
                                     <td className="px-6 py-4">

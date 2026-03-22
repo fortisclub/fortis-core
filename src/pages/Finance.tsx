@@ -10,7 +10,11 @@ import { useApp } from '../store';
 
 const parseISO = (str: string) => {
     if (!str) return new Date();
-    // Substitui espaço por T para evitar Invalid Date em strings como "2026-03-05 00:00:00+00"
+    const datePart = str.trim().split('T')[0].split(' ')[0];
+    if (datePart.includes('-')) {
+        const [y, m, d] = datePart.split('-');
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
     return new Date(str.trim().replace(' ', 'T'));
 };
 const isSameMonth = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();
@@ -412,7 +416,10 @@ export const Finance: React.FC = () => {
         end.setHours(23, 59, 59, 999);
 
         while (current <= end) {
-            const dateStr = current.toISOString().split('T')[0];
+            const y = current.getFullYear();
+            const m = String(current.getMonth() + 1).padStart(2, '0');
+            const dStr = String(current.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${dStr}`;
             const dailyLabel = String(current.getDate()).padStart(2, '0');
 
             const val = cashFlows
