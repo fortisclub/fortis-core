@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { X, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useApp } from '../store';
-import { UFS, LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, AFTER_SALES_PHASE_MAP } from '../constants';
+import { UFS, LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP } from '../constants';
 import { LeadStatus } from '../types';
 
 interface LeadModalProps {
@@ -38,7 +38,6 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
           uf: editLead.uf,
           notes: editLead.notes,
           cpf: editLead.cpf || '',
-          afterSalesPhase: (editLead.afterSalesPhase as string) === 'A_CONTACTAR' ? 'A_CONTATAR' as any : (editLead.afterSalesPhase || null),
         });
       } else {
         reset({
@@ -62,9 +61,6 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
 
   const onSubmit = async (data: any) => {
     try {
-      if (!editLead?.afterSalesStatus) {
-        data.afterSalesPhase = null;
-      }
 
       if (editLead) {
         await updateLead(editLead.id, data);
@@ -196,19 +192,6 @@ export const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, leadId })
               {errors.responsibleId && <span className="text-red-500 text-[10px]">Obrigatório</span>}
             </div>
 
-            {editLead?.afterSalesStatus && (
-              <div>
-                <label className="block text-[11px] font-bold text-fortis-mid uppercase tracking-widest mb-1">Fase do Pipeline</label>
-                <select
-                  {...register('afterSalesPhase')}
-                  className="w-full bg-fortis-panel border border-fortis-surface rounded-lg px-3 py-2 text-sm focus:border-fortis-brand outline-none"
-                >
-                  {Object.entries(AFTER_SALES_PHASE_MAP).map(([key, val]) => (
-                    <option key={key} value={key}>{val.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             <div>
               <label className="block text-[11px] font-bold text-fortis-mid uppercase tracking-widest mb-1">UF *</label>

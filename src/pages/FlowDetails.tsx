@@ -9,6 +9,18 @@ import { Lead, AfterSalesStatus, CadenceTask, LeadStatus } from '../types';
 import { AFTER_SALES_STATUS_MAP, LEAD_STATUS_MAP } from '../constants';
 import { supabase } from '../lib/supabase';
 
+type PeriodOption = 'today' | 'last7' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'all';
+
+const PERIOD_LABELS: Record<PeriodOption, string> = {
+    today: 'Hoje',
+    last7: 'Últimos 7 dias',
+    thisMonth: 'Este mês',
+    lastMonth: 'Último mês',
+    thisYear: 'Este ano',
+    lastYear: 'Último ano',
+    all: 'Todos'
+};
+
 type ViewMode = 'LIST' | 'KANBAN' | 'CALENDAR';
 
 export const FlowDetails: React.FC = () => {
@@ -24,6 +36,70 @@ export const FlowDetails: React.FC = () => {
     const flowName = flow?.name || 'Fluxo Inexistente';
 
     const [tasks, setTasks] = useState<CadenceTask[]>([]);
+
+    // ─── Filter state ───────────────────────────────────────────
+    const [filterPeriod, setFilterPeriod] = useState<PeriodOption>('all');
+    const [filterName, setFilterName] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterResponsible, setFilterResponsible] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+
+    // close period dropdown on outside click - removed (using panel pattern now)
+
+    // Compute the date range for the selected period
+    const getPeriodRange = (): { start: string | null; end: string | null } => {
+        const now = new Date();
+        const fmt = (d: Date) => d.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+        if (filterPeriod === 'today') {
+            const s = fmt(now);
+            return { start: s, end: s };
+        }
+        if (filterPeriod === 'last7') {
+            const s = new Date(now); s.setDate(now.getDate() - 6);
+            return { start: fmt(s), end: fmt(now) };
+        }
+        if (filterPeriod === 'thisMonth') {
+            const s = new Date(now.getFullYear(), now.getMonth(), 1);
+            const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { start: fmt(s), end: fmt(e) };
+        }
+        if (filterPeriod === 'lastMonth') {
+            const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const e = new Date(now.getFullYear(), now.getMonth(), 0);
+            return { start: fmt(s), end: fmt(e) };
+        }
+        if (filterPeriod === 'thisYear') {
+            return { start: `${now.getFullYear()}-01-01`, end: `${now.getFullYear()}-12-31` };
+        }
+        if (filterPeriod === 'lastYear') {
+            const y = now.getFullYear() - 1;
+            return { start: `${y}-01-01`, end: `${y}-12-31` };
+        }
+        return { start: null, end: null };
+    };
+
+    // Master filtered tasks list (applied to all views)
+    const filteredTasks = tasks.filter(t => {
+        // Name filter
+        if (filterName && !t.lead?.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+        // Status filter (Pós-Venda only)
+        if (filterStatus) {
+            if (t.lead?.afterSalesStatus !== filterStatus) return false;
+        }
+        // Responsible filter
+        if (filterResponsible && t.lead?.responsibleId !== filterResponsible) return false;
+        // Period filter on dueDate
+        if (filterPeriod !== 'all') {
+            const { start, end } = getPeriodRange();
+            const d = t.dueDate ? t.dueDate.split('T')[0] : null;
+            if (!d) return false;
+            if (start && d < start) return false;
+            if (end && d > end) return false;
+        }
+        return true;
+    });
+
+    const hasActiveFilters = filterPeriod !== 'all' || filterName !== '' || filterStatus !== '' || filterResponsible !== '';
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedLeadId, setSelectedLeadId] = useState('');
     const [selectedDueDate, setSelectedDueDate] = useState('');
@@ -103,7 +179,6 @@ export const FlowDetails: React.FC = () => {
                     phone: t.lead.phone,
                     status: t.lead.status,
                     afterSalesStatus: t.lead.after_sales_status,
-                    afterSalesPhase: t.lead.after_sales_phase,
                     responsibleId: t.lead.responsible_id,
                     tags: t.lead.tags,
                     uf: t.lead.uf,
@@ -253,7 +328,6 @@ export const FlowDetails: React.FC = () => {
                     phone: data.lead.phone,
                     status: data.lead.status,
                     afterSalesStatus: data.lead.after_sales_status,
-                    afterSalesPhase: data.lead.after_sales_phase,
                     responsibleId: data.lead.responsible_id,
                     tags: data.lead.tags,
                     uf: data.lead.uf,
@@ -362,9 +436,9 @@ export const FlowDetails: React.FC = () => {
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        const tasksAtrasadas = tasks.filter(t => t.dueDate && t.dueDate.split('T')[0] < today);
-        const tasksHoje = tasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === today);
-        const tasksAVencer = tasks.filter(t => !t.dueDate || t.dueDate.split('T')[0] > today);
+        const tasksAtrasadas = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] < today);
+        const tasksHoje = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === today);
+        const tasksAVencer = filteredTasks.filter(t => !t.dueDate || t.dueDate.split('T')[0] > today);
 
         return (
             <div className="bg-[#040608] min-h-full rounded-2xl p-4 space-y-6 animate-in fade-in duration-300">
@@ -546,11 +620,11 @@ export const FlowDetails: React.FC = () => {
                                     </span>
                                 )}
                             </h3>
-                            <span className="text-xs font-bold bg-fortis-dark text-fortis-mid px-2 py-1 rounded-lg">{tasks.filter(t => t.stageId === stage.id).length}</span>
+                            <span className="text-xs font-bold bg-fortis-dark text-fortis-mid px-2 py-1 rounded-lg">{filteredTasks.filter(t => t.stageId === stage.id).length}</span>
                         </div>
                         <div className="flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar">
-                            {tasks.filter(t => t.stageId === stage.id).length > 0 ? (
-                                tasks.filter(t => t.stageId === stage.id).map(task => {
+                            {filteredTasks.filter(t => t.stageId === stage.id).length > 0 ? (
+                                filteredTasks.filter(t => t.stageId === stage.id).map(task => {
                                     const lead = task.lead;
                                     if (!lead) return null;
                                     return (
@@ -675,7 +749,7 @@ export const FlowDetails: React.FC = () => {
                     {days.map((day, i) => {
                         const tempDate = new Date(new Date().getFullYear(), new Date().getMonth(), day);
                         const dateStr = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-                        const dayTasks = tasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === dateStr);
+                        const dayTasks = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === dateStr);
 
                         return (
                             <div
@@ -714,7 +788,7 @@ export const FlowDetails: React.FC = () => {
                             </div>
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
-                                {tasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`).map(task => (
+                                {filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`).map(task => (
                                     <div key={task.id}
                                         onClick={() => {
                                             setSelectedTask(task);
@@ -735,7 +809,7 @@ export const FlowDetails: React.FC = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {tasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`).length === 0 && (
+                                {filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`).length === 0 && (
                                     <div className="py-12 text-center opacity-50">
                                         <CalendarIcon size={32} className="mx-auto text-fortis-mid mb-3" />
                                         <p className="text-sm font-medium text-fortis-mid">Nenhuma tarefa para este dia.</p>
@@ -770,30 +844,85 @@ export const FlowDetails: React.FC = () => {
                         </h1>
 
                         <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fortis-mid" />
-                                <input
-                                    type="text"
-                                    placeholder="Buscar neste fluxo..."
-                                    className="pl-9 pr-4 py-2 bg-fortis-dark border border-fortis-surface rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors w-full sm:w-64"
-                                />
-                            </div>
-                            <button className="p-2 bg-fortis-dark border border-fortis-surface rounded-xl text-fortis-mid hover:text-white transition-colors" title="Filtros">
-                                <Filter size={18} />
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all ${
+                                    showFilters ? 'bg-fortis-brand border-fortis-brand text-white' : 'bg-fortis-panel border-fortis-surface text-fortis-mid hover:text-white'
+                                }`}
+                            >
+                                <Filter size={16} /> Filtros {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-white ml-1" />}
                             </button>
                         </div>
                     </div>
+
+                    {/* ─── Painel de filtros colapsável ─────────────────────────── */}
+                    {showFilters && (
+                        <div className="bg-fortis-panel/50 border border-fortis-surface p-6 rounded-2xl grid grid-cols-4 gap-4 animate-in slide-in-from-top-4 duration-300 mt-4">
+                            {/* Período */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Período</label>
+                                <select
+                                    value={filterPeriod}
+                                    onChange={e => setFilterPeriod(e.target.value as PeriodOption)}
+                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
+                                >
+                                    {(Object.keys(PERIOD_LABELS) as PeriodOption[]).map(opt => (
+                                        <option key={opt} value={opt}>{PERIOD_LABELS[opt]}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Nome */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Nome</label>
+                                <div className="relative">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fortis-mid" />
+                                    <input
+                                        type="text"
+                                        placeholder="Pesquisar..."
+                                        value={filterName}
+                                        onChange={e => setFilterName(e.target.value)}
+                                        className="w-full bg-fortis-dark border border-fortis-surface rounded-lg pl-9 pr-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Status</label>
+                                <select
+                                    value={filterStatus}
+                                    onChange={e => setFilterStatus(e.target.value)}
+                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
+                                >
+                                    <option value="">Todos os Status</option>
+                                    {Object.entries(AFTER_SALES_STATUS_MAP).map(([key, val]) => (
+                                        <option key={key} value={key}>{val.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Responsável */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Responsável</label>
+                                <select
+                                    value={filterResponsible}
+                                    onChange={e => setFilterResponsible(e.target.value)}
+                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
+                                >
+                                    <option value="">Todos os Responsáveis</option>
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-between py-2 border-b border-fortis-surface/50">
                     {renderViewToggle()}
-
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/20 text-sm"
-                    >
-                        <Plus size={16} /> Add Item
-                    </button>
                 </div>
             </header>
 

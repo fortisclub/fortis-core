@@ -1,31 +1,56 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Star, TrendingUp, AlertCircle, ShoppingCart, MoreVertical, X, History, FileText, Phone, AtSign, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Calendar, User, Tags as TagsIcon, Check, ChevronDown, LayoutGrid, List, Plus } from 'lucide-react';
+import { Search, Filter, Star, TrendingUp, AlertCircle, ShoppingCart, MoreVertical, X, History, FileText, Phone, AtSign, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Calendar, User, Tags as TagsIcon, Check, ChevronDown, Plus, Workflow } from 'lucide-react';
 import { useApp } from '../store';
-import { AFTER_SALES_STATUS_MAP, LEAD_STATUS_MAP, AFTER_SALES_PHASE_MAP } from '../constants';
-import { AfterSalesStatus, LeadStatus, LeadHistory, AfterSalesPhase } from '../types';
+import { supabase } from '../lib/supabase';
+import { AFTER_SALES_STATUS_MAP, LEAD_STATUS_MAP } from '../constants';
+import { AfterSalesStatus, LeadStatus, LeadHistory } from '../types';
 import { LeadModal } from '../components/LeadModal';
 import { useTableSort } from '../hooks/useTableSort';
 import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
 
 export const AfterSales: React.FC = () => {
-  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead, fetchLeadHistory } = useApp();
+  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead, fetchLeadHistory, cadenceFlows } = useApp();
+
+  // Estado para mapear leads aos seus fluxos de cadência ativos (ID e Nome)
+  const [activeFlowsMap, setActiveFlowsMap] = useState<Record<string, { id: string, name: string }>>({});
 
   // Carregar todos os clientes ao montar a página
   React.useEffect(() => {
     fetchAllClients();
   }, [fetchAllClients]);
 
-  const [view, setView] = useState<'kanban' | 'table'>('kanban');
+  // Carregar fluxos de cadência para os leads
+  React.useEffect(() => {
+    const fetchActiveFlows = async () => {
+      const { data, error } = await supabase
+        .from('cadence_tasks')
+        .select('lead_id, flow_id')
+        .eq('completed', false);
+
+      if (!error && data) {
+        const map: Record<string, { id: string, name: string }> = {};
+        data.forEach((task: any) => {
+          const flow = cadenceFlows.find(f => f.id === task.flow_id);
+          if (flow) {
+            map[String(task.lead_id)] = { id: flow.id, name: flow.name };
+          }
+        });
+        setActiveFlowsMap(map);
+      }
+    };
+    fetchActiveFlows();
+  }, [cadenceFlows, leads]);
   const [showFilters, setShowFilters] = useState(false);
   const [localFilters, setLocalFilters] = useState({
     search: '',
-    status: 'ALL' as AfterSalesStatus | 'ALL',
-    responsibleId: 'ALL',
+    status: [] as string[],
+    responsibleId: [] as string[],
     tags: [] as string[],
-    origin: 'ALL',
-    channel: 'ALL'
+    origin: [] as string[],
+    channel: [] as string[],
+    flowId: [] as string[]
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,6 +59,8 @@ export const AfterSales: React.FC = () => {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const selectedLead = useMemo(() => leads.find(l => l.id === selectedLeadId) || null, [leads, selectedLeadId]);
 
+  const [isAddingFilter, setIsAddingFilter] = useState(false);
+  const [filterMenuOpen, setFilterMenuOpen] = useState<string | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'history'>('info');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [manualNote, setManualNote] = useState('');
@@ -65,42 +92,22 @@ export const AfterSales: React.FC = () => {
       const matchSearch = l.name.toLowerCase().includes(localFilters.search.toLowerCase()) ||
         l.email.toLowerCase().includes(localFilters.search.toLowerCase());
 
-      const matchStatus = localFilters.status === 'ALL' || l.afterSalesStatus === localFilters.status || l.status === localFilters.status;
-      const matchResp = localFilters.responsibleId === 'ALL' || l.responsibleId === localFilters.responsibleId;
-      const matchOrigin = localFilters.origin === 'ALL' || l.origin === localFilters.origin;
-      const matchChannel = localFilters.channel === 'ALL' || l.channel === localFilters.channel;
+      const matchStatus = localFilters.status.length === 0 || localFilters.status.includes(l.afterSalesStatus || '') || localFilters.status.includes(l.status as string);
+      const matchResp = localFilters.responsibleId.length === 0 || (l.responsibleId && localFilters.responsibleId.includes(l.responsibleId));
+      const matchOrigin = localFilters.origin.length === 0 || (l.origin && localFilters.origin.includes(l.origin));
+      const matchChannel = localFilters.channel.length === 0 || (l.channel && localFilters.channel.includes(l.channel));
       const matchTags = localFilters.tags.length === 0 || localFilters.tags.every(t => (l.tags || []).includes(t));
+      const matchFlow = localFilters.flowId.length === 0 || (activeFlowsMap[l.id]?.id && localFilters.flowId.includes(activeFlowsMap[l.id].id));
 
-      return matchSearch && matchStatus && matchResp && matchOrigin && matchChannel && matchTags;
+      return matchSearch && matchStatus && matchResp && matchOrigin && matchChannel && matchTags && matchFlow;
     }).map(client => ({
       ...client,
-      afterSalesStatus: client.afterSalesStatus || 'PRIMEIRA_COMPRA' as AfterSalesStatus,
-      afterSalesPhase: client.afterSalesPhase || 'A_CONTATAR' as AfterSalesPhase
+      afterSalesStatus: client.afterSalesStatus || 'PRIMEIRA_COMPRA' as AfterSalesStatus
     }));
-  }, [leads, localFilters]);
+  }, [leads, localFilters, activeFlowsMap]);
 
   const { sortedData: sortedAfterSales, sortConfig, requestSort } = useTableSort(filteredAfterSales, { key: 'lastPurchaseAt', direction: 'desc' });
 
-  const pipelineGroups = useMemo(() => {
-    const groups: Record<AfterSalesPhase, typeof filteredAfterSales> = {
-      A_CONTATAR: [],
-      EM_ATENDIMENTO: [],
-      FOLLOW_UP: [],
-      QUALIFICADO: [],
-      SEM_INTERESSE: []
-    };
-
-    sortedAfterSales.forEach(lead => {
-      const phase = lead.afterSalesPhase || 'A_CONTATAR';
-      if (groups[phase]) {
-        groups[phase].push(lead);
-      } else {
-        groups.A_CONTATAR.push(lead);
-      }
-    });
-
-    return groups;
-  }, [sortedAfterSales]);
 
   const paginatedAfterSales = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -139,30 +146,6 @@ export const AfterSales: React.FC = () => {
             <h2 className="text-2xl font-bold text-white">Pós-venda</h2>
             <p className="text-fortis-mid text-sm font-semibold">Gestão avançada de clientes e retenção.</p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all ${showFilters ? 'bg-fortis-brand border-fortis-brand text-white' : 'bg-fortis-panel border-fortis-surface text-fortis-mid hover:text-white'}`}
-            >
-              <Filter size={16} /> Filtros {(localFilters.status !== 'ALL' || localFilters.responsibleId !== 'ALL' || localFilters.tags.length > 0 || localFilters.origin !== 'ALL' || localFilters.channel !== 'ALL' || localFilters.search !== '') && <span className="w-2 h-2 rounded-full bg-white ml-1" />}
-            </button>
-
-            <div className="flex items-center gap-1 bg-fortis-panel border border-fortis-surface p-1 rounded-xl">
-              <button
-                onClick={() => setView('kanban')}
-                className={`p-2 rounded-lg transition-all ${view === 'kanban' ? 'bg-fortis-surface text-fortis-brand shadow-sm' : 'text-fortis-mid hover:text-white'}`}
-              >
-                <LayoutGrid size={18} />
-              </button>
-              <button
-                onClick={() => setView('table')}
-                className={`p-2 rounded-lg transition-all ${view === 'table' ? 'bg-fortis-surface text-fortis-brand shadow-sm' : 'text-fortis-mid hover:text-white'}`}
-              >
-                <List size={18} />
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* KPIs */}
@@ -185,202 +168,309 @@ export const AfterSales: React.FC = () => {
           ))}
         </div>
 
-        {showFilters && (
-          <div className="bg-fortis-panel/50 border border-fortis-surface p-6 rounded-2xl grid grid-cols-6 gap-4 animate-in slide-in-from-top-4 duration-300">
-            {/* Nome */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Nome</label>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" />
-                <input
-                  type="text"
-                  placeholder="Pesquisar..."
-                  value={localFilters.search}
-                  onChange={(e) => setLocalFilters({ ...localFilters, search: e.target.value })}
-                  className="w-full bg-fortis-dark border border-fortis-surface rounded-lg pl-9 pr-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold"
-                />
+
+        <div className="flex items-center gap-3 bg-fortis-panel border border-fortis-surface p-2 rounded-xl w-full shadow-lg relative min-h-[52px]">
+          <Filter size={16} className="text-fortis-mid ml-2" />
+          
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Active Filter Chips */}
+            {localFilters.search !== '' && (
+              <div className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Busca:</span> {localFilters.search}
+                <button onClick={() => setLocalFilters({ ...localFilters, search: '' })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
               </div>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Status</label>
-              <select
-                value={localFilters.status}
-                onChange={(e) => setLocalFilters({ ...localFilters, status: e.target.value as AfterSalesStatus | 'ALL' })}
-                className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
-              >
-                <option value="ALL">Todos os Status</option>
-                {Object.entries(AFTER_SALES_STATUS_MAP).map(([key, val]) => (
-                  <option key={key} value={key}>{val.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Responsável */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Responsável</label>
-              <select
-                value={localFilters.responsibleId}
-                onChange={(e) => setLocalFilters({ ...localFilters, responsibleId: e.target.value })}
-                className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
-              >
-                <option value="ALL">Todos os Responsáveis</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-2 relative">
-              <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Tag's</label>
-              <div
-                className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs text-white font-bold cursor-pointer flex items-center justify-between"
-                onClick={() => setShowTagFilter(!showTagFilter)}
-              >
-                <span className="truncate">{localFilters.tags.length === 0 ? 'Todas as Tags' : `${localFilters.tags.length} selecionada(s)`}</span>
-                <Filter size={12} className="text-fortis-mid" />
+            )}
+            {localFilters.status.length > 0 && localFilters.status.map(s => (
+              <div key={s} className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Status:</span> {AFTER_SALES_STATUS_MAP[s as AfterSalesStatus]?.label || s}
+                <button onClick={() => setLocalFilters({ ...localFilters, status: localFilters.status.filter(v => v !== s) })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
               </div>
-
-              {showTagFilter && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowTagFilter(false)} />
-                  <div className="absolute top-full left-0 w-full mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl z-50 p-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                    {tags.map(tag => (
-                      <div
-                        key={tag.id}
-                        onClick={() => {
-                          if (localFilters.tags.includes(tag.label)) {
-                            setLocalFilters({ ...localFilters, tags: localFilters.tags.filter(t => t !== tag.label) });
-                          } else {
-                            setLocalFilters({ ...localFilters, tags: [...localFilters.tags, tag.label] });
-                          }
-                        }}
-                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand/20 text-fortis-brand' : 'hover:bg-fortis-surface text-fortis-mid'}`}
-                      >
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                        <span className="text-[10px] font-bold uppercase">{tag.label}</span>
-                        {localFilters.tags.includes(tag.label) && <X size={10} className="ml-auto" />}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Origem */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Origem</label>
-              <select
-                value={localFilters.origin}
-                onChange={(e) => setLocalFilters({ ...localFilters, origin: e.target.value })}
-                className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
-              >
-                <option value="ALL">Todas as Origens</option>
-                {availableOrigins.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-
-            {/* Canal */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Canal</label>
-              <select
-                value={localFilters.channel}
-                onChange={(e) => setLocalFilters({ ...localFilters, channel: e.target.value })}
-                className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold cursor-pointer"
-              >
-                <option value="ALL">Todos os Canais</option>
-                {availableChannels.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+            ))}
+            {localFilters.responsibleId.length > 0 && localFilters.responsibleId.map(rId => (
+              <div key={rId} className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Resp:</span> {users.find(u => u.id === rId)?.name || 'Removido'}
+                <button onClick={() => setLocalFilters({ ...localFilters, responsibleId: localFilters.responsibleId.filter(v => v !== rId) })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {localFilters.flowId.length > 0 && localFilters.flowId.map(fId => (
+              <div key={fId} className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Fluxo:</span> {cadenceFlows.find(f => f.id === fId)?.name}
+                <button onClick={() => setLocalFilters({ ...localFilters, flowId: localFilters.flowId.filter(v => v !== fId) })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {localFilters.tags.length > 0 && localFilters.tags.map(tag => (
+              <div key={tag} className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Tag:</span> {tag}
+                <button onClick={() => setLocalFilters({ ...localFilters, tags: localFilters.tags.filter(t => t !== tag) })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {localFilters.origin.length > 0 && localFilters.origin.map(o => (
+              <div key={o} className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Origem:</span> {o}
+                <button onClick={() => setLocalFilters({ ...localFilters, origin: localFilters.origin.filter(v => v !== o) })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {localFilters.channel.length > 0 && localFilters.channel.map(c => (
+              <div key={c} className="flex items-center gap-2 bg-fortis-brand/20 border border-fortis-brand/30 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase text-fortis-brand group slide-in-from-left-2 animate-in duration-200">
+                <span className="opacity-60">Canal:</span> {c}
+                <button onClick={() => setLocalFilters({ ...localFilters, channel: localFilters.channel.filter(v => v !== c) })} className="hover:text-white transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
           </div>
-        )}
 
-        {view === 'kanban' ? (
-          <div className="flex-1 overflow-x-auto pb-6 custom-scrollbar">
-            <div className="flex gap-4 h-full min-w-max">
-              {(Object.entries(AFTER_SALES_PHASE_MAP) as [AfterSalesPhase, any][]).map(([phase, config]) => (
-                <div
-                  key={phase}
-                  className="w-72 flex flex-col h-full bg-fortis-panel/20 rounded-2xl border border-fortis-surface/40 overflow-hidden"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={async (e) => {
-                    const id = e.dataTransfer.getData('leadId');
-                    if (id) {
-                      await updateLead(id, { afterSalesPhase: phase });
-                    }
-                  }}
-                >
-                  <div className="p-4 flex items-center justify-between shrink-0 bg-fortis-panel/10">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.color }} />
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">{config.label}</h3>
-                    </div>
+          {/* Add Filter Button */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsAddingFilter(!isAddingFilter)}
+              className="px-3 py-1.5 rounded-lg text-fortis-mid hover:text-white hover:bg-white/5 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ml-2"
+            >
+              <Plus size={14} className={isAddingFilter ? 'rotate-45' : ''} />
+              Adicionar filtro
+            </button>
+
+            {isAddingFilter && (
+              <div className="absolute top-full left-0 mt-2 w-56 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl z-[100] p-1 slide-in-from-top-2 animate-in duration-200">
+                <div className="p-2">
+                   <input 
+                     type="text" 
+                     placeholder="Pesquisar..." 
+                     className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold mb-2 ml-0"
+                     autoFocus
+                     onKeyDown={(e) => {
+                       if (e.key === 'Enter') {
+                         setLocalFilters({ ...localFilters, search: (e.target as HTMLInputElement).value });
+                         setIsAddingFilter(false);
+                         (e.target as HTMLInputElement).value = '';
+                       }
+                     }}
+                   />
+                </div>
+                {[
+                  { id: 'status', label: 'Status' },
+                  { id: 'resp', label: 'Responsável' },
+                  { id: 'fluxo', label: 'Fluxo' },
+                  { id: 'tags', label: 'Tag\'s' },
+                  { id: 'origem', label: 'Origem' },
+                  { id: 'canal', label: 'Canal' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setFilterMenuOpen(opt.id);
+                      setIsAddingFilter(false);
+                    }}
+                    className="w-full flex items-center justify-between p-2.5 hover:bg-white/5 rounded-lg text-[10px] font-black uppercase tracking-widest text-fortis-mid hover:text-white transition-all group"
+                  >
+                    {opt.label}
+                    <ChevronDown size={14} className="-rotate-90 opacity-0 group-hover:opacity-100 transition-all mr-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Specific Popups for each dimension */}
+            {filterMenuOpen && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto" onClick={() => setFilterMenuOpen(null)} />
+                <div className="relative bg-fortis-panel border border-fortis-surface rounded-2xl shadow-2xl p-6 w-[320px] pointer-events-auto space-y-4 slide-in-from-bottom-2 animate-in duration-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                      {filterMenuOpen === 'status' && 'Filtrar por Status'}
+                      {filterMenuOpen === 'resp' && 'Filtrar por Responsável'}
+                      {filterMenuOpen === 'fluxo' && 'Filtrar por Fluxo'}
+                      {filterMenuOpen === 'tags' && 'Filtrar por Tag\'s'}
+                      {filterMenuOpen === 'origem' && 'Filtrar por Origem'}
+                      {filterMenuOpen === 'canal' && 'Filtrar por Canal'}
+                    </h3>
+                    <button onClick={() => setFilterMenuOpen(null)} className="text-fortis-mid hover:text-white transition-colors">
+                      <X size={20} />
+                    </button>
                   </div>
 
-                  <div className="flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar">
-                    {pipelineGroups[phase]?.map(client => (
+                  <div className="space-y-1 max-h-[300px] overflow-auto custom-scrollbar">
+                    {filterMenuOpen === 'status' && Object.entries(AFTER_SALES_STATUS_MAP).map(([key, val]) => (
                       <div
-                        key={client.id}
-                        onClick={() => { setSelectedLeadId(client.id); setActiveDetailTab('info'); }}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('leadId', client.id)}
-                        className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-4 hover:border-fortis-brand/50 transition-all cursor-pointer group shadow-sm hover:shadow-xl"
+                        key={key}
+                        onClick={() => {
+                          const newList = localFilters.status.includes(key) 
+                            ? localFilters.status.filter(v => v !== key)
+                            : [...localFilters.status, key];
+                          setLocalFilters({ ...localFilters, status: newList });
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.status.includes(key) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
                       >
-                        <p className="font-bold text-sm truncate text-white mb-1">{client.name}</p>
-
-                        <div className="mb-2">
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm border uppercase tracking-wider" style={{
-                            backgroundColor: `${AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color}15`,
-                            color: AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color,
-                            borderColor: `${AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color}40`
-                          }}>
-                            {AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.label}
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: val.color }} />
+                          {val.label}
                         </div>
-
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {(client.tags || []).map(tagLabel => {
-                            const tagConfig = tags.find(t => t.label === tagLabel);
-                            return (
-                              <span
-                                key={tagLabel}
-                                className="px-1.5 py-0.5 rounded text-[8px] font-black text-white shadow-sm uppercase tracking-wider"
-                                style={{ backgroundColor: tagConfig?.color || '#575756' }}
-                              >
-                                {tagLabel}
-                              </span>
-                            );
-                          })}
-                        </div>
-
-                        <div className="flex justify-between items-center border-t border-fortis-surface/50 pt-3">
-                          <span className="text-[9px] text-fortis-mid font-black uppercase">{client.uf}</span>
-                          <img src={users.find(u => u.id === client.responsibleId)?.avatar} className="w-6 h-6 rounded-full border border-fortis-surface shadow-sm" alt="" />
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.status.includes(key) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                          {localFilters.status.includes(key) && <Check size={12} className="text-white" />}
                         </div>
                       </div>
                     ))}
+                    {filterMenuOpen === 'resp' && users.map(u => (
+                      <div
+                        key={u.id}
+                        onClick={() => {
+                          const newList = localFilters.responsibleId.includes(u.id) 
+                            ? localFilters.responsibleId.filter(v => v !== u.id)
+                            : [...localFilters.responsibleId, u.id];
+                          setLocalFilters({ ...localFilters, responsibleId: newList });
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.responsibleId.includes(u.id) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <img src={u.avatar} className="w-5 h-5 rounded-full" alt="" />
+                          {u.name}
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.responsibleId.includes(u.id) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                          {localFilters.responsibleId.includes(u.id) && <Check size={12} className="text-white" />}
+                        </div>
+                      </div>
+                    ))}
+                    {filterMenuOpen === 'fluxo' && cadenceFlows.map(f => (
+                      <div
+                        key={f.id}
+                        onClick={() => {
+                          const newList = localFilters.flowId.includes(f.id) 
+                            ? localFilters.flowId.filter(v => v !== f.id)
+                            : [...localFilters.flowId, f.id];
+                          setLocalFilters({ ...localFilters, flowId: newList });
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.flowId.includes(f.id) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Workflow size={14} />
+                          {f.name}
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.flowId.includes(f.id) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                          {localFilters.flowId.includes(f.id) && <Check size={12} className="text-white" />}
+                        </div>
+                      </div>
+                    ))}
+                    {filterMenuOpen === 'tags' && tags.map(tag => (
+                       <div
+                         key={tag.id}
+                         onClick={() => {
+                           if (localFilters.tags.includes(tag.label)) {
+                             setLocalFilters({ ...localFilters, tags: localFilters.tags.filter(t => t !== tag.label) });
+                           } else {
+                             setLocalFilters({ ...localFilters, tags: [...localFilters.tags, tag.label] });
+                           }
+                         }}
+                         className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                       >
+                         <div className="flex items-center gap-3">
+                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                           {tag.label}
+                         </div>
+                         <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                           {localFilters.tags.includes(tag.label) && <Check size={12} className="text-white" />}
+                         </div>
+                       </div>
+                    ))}
+                    {filterMenuOpen === 'origem' && availableOrigins.map(o => (
+                      <div
+                        key={o}
+                        onClick={() => {
+                          const newList = localFilters.origin.includes(o) 
+                            ? localFilters.origin.filter(v => v !== o)
+                            : [...localFilters.origin, o];
+                          setLocalFilters({ ...localFilters, origin: newList });
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.origin.includes(o) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                      >
+                        {o}
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.origin.includes(o) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                          {localFilters.origin.includes(o) && <Check size={12} className="text-white" />}
+                        </div>
+                      </div>
+                    ))}
+                    {filterMenuOpen === 'canal' && availableChannels.map(c => (
+                      <div
+                        key={c}
+                        onClick={() => {
+                          const newList = localFilters.channel.includes(c) 
+                            ? localFilters.channel.filter(v => v !== c)
+                            : [...localFilters.channel, c];
+                          setLocalFilters({ ...localFilters, channel: newList });
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.channel.includes(c) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                      >
+                        {c}
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.channel.includes(c) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                          {localFilters.channel.includes(c) && <Check size={12} className="text-white" />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-fortis-surface mt-2 mr-0">
+                     {( (filterMenuOpen === 'tags' && localFilters.tags.length > 0) || 
+                        (filterMenuOpen === 'status' && localFilters.status.length > 0) || 
+                        (filterMenuOpen === 'resp' && localFilters.responsibleId.length > 0) || 
+                        (filterMenuOpen === 'fluxo' && localFilters.flowId.length > 0) ||
+                        (filterMenuOpen === 'origem' && localFilters.origin.length > 0) ||
+                        (filterMenuOpen === 'canal' && localFilters.channel.length > 0)
+                      ) && (
+                        <button 
+                          onClick={() => {
+                            if (filterMenuOpen === 'tags') setLocalFilters({ ...localFilters, tags: [] });
+                            else if (filterMenuOpen === 'status') setLocalFilters({ ...localFilters, status: [] });
+                            else if (filterMenuOpen === 'resp') setLocalFilters({ ...localFilters, responsibleId: [] });
+                            else if (filterMenuOpen === 'fluxo') setLocalFilters({ ...localFilters, flowId: [] });
+                            else if (filterMenuOpen === 'origem') setLocalFilters({ ...localFilters, origin: [] });
+                            else if (filterMenuOpen === 'canal') setLocalFilters({ ...localFilters, channel: [] });
+                          }}
+                          className="text-[10px] font-black text-fortis-mid hover:text-red-400 uppercase tracking-widest transition-all mr-0"
+                        >
+                          Limpar
+                        </button>
+                     )}
+                     <button 
+                       onClick={() => setFilterMenuOpen(null)}
+                       className="px-6 py-2 bg-fortis-brand text-white rounded-xl text-[11px] font-black uppercase tracking-widest ml-auto"
+                     >
+                       Aplicar
+                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <>
-            <div className="flex-1 bg-fortis-panel border border-fortis-surface rounded-2xl overflow-auto shadow-xl custom-scrollbar min-h-0">
-              <table className="w-full text-left min-w-[1100px]">
-                <thead className="bg-fortis-dark/50">
-                  <tr>
-                    <SortableTableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} />
-                    <SortableTableHeader label="Status" sortKey="afterSalesStatus" sortConfig={sortConfig} requestSort={requestSort} />
-                    <SortableTableHeader label="Responsável" sortKey="responsibleId" sortConfig={sortConfig} requestSort={requestSort} />
-                    <SortableTableHeader label="Último Contato" sortKey="lastContactAt" sortConfig={sortConfig} requestSort={requestSort} />
-                    <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest">Tag's</th>
-                    <SortableTableHeader label="Origem" sortKey="origin" sortConfig={sortConfig} requestSort={requestSort} />
-                    <SortableTableHeader label="Canal" sortKey="channel" sortConfig={sortConfig} requestSort={requestSort} />
-                    <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest text-center">Pedidos</th>
-                    <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest text-right">Ações</th>
-                  </tr>
-                </thead>
+        </div>
+
+
+          <div className="flex-1 bg-fortis-panel border border-fortis-surface rounded-2xl overflow-auto shadow-xl custom-scrollbar min-h-0">
+            <table className="w-full text-left table-fixed min-w-[1100px]">
+              <thead className="bg-fortis-dark/50 sticky top-0 z-10">
+                <tr>
+                  <SortableTableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="w-[220px]" />
+                  <SortableTableHeader label="Status" sortKey="afterSalesStatus" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
+                  <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[180px]">
+                    Fluxo
+                  </th>
+                  <SortableTableHeader label="Responsável" sortKey="responsibleId" sortConfig={sortConfig} requestSort={requestSort} className="w-[120px]" />
+                  <SortableTableHeader label="Último Contato" sortKey="lastContactAt" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
+                  <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[140px]">Tag's</th>
+                  <SortableTableHeader label="Origem/Canal" sortKey="origin" sortConfig={sortConfig} requestSort={requestSort} className="w-[130px]" />
+                  <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[80px] text-center">Pedidos</th>
+                </tr>
+              </thead>
                 <tbody className="divide-y divide-fortis-surface">
                   {paginatedAfterSales.map(client => (
                     <tr
@@ -401,6 +491,18 @@ export const AfterSales: React.FC = () => {
                         }}>
                           {(AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.label || client.afterSalesStatus || 'Sem Status')}
                         </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        {activeFlowsMap[client.id] ? (
+                          <div className="flex items-center gap-1.5 bg-fortis-brand/10 border border-fortis-brand/20 rounded-lg px-2 py-1 w-fit">
+                            <Workflow size={11} className="text-fortis-brand shrink-0" />
+                            <span className="text-[9px] font-black text-fortis-brand uppercase leading-tight">
+                              {activeFlowsMap[client.id].name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-bold text-fortis-mid/40">Nenhum fluxo</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -426,22 +528,21 @@ export const AfterSales: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-xs font-bold text-white/80">{client.origin}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-bold text-white/80">{client.channel}</span>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-white/80 truncate">{client.origin}</span>
+                          <span className="text-[10px] text-fortis-mid font-medium truncate">{client.channel}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-xs font-bold text-white/80">
                           {client.purchaseHistory && client.purchaseHistory.length > 0 ? client.purchaseHistory.length : '-'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right"><MoreVertical size={16} className="ml-auto text-fortis-mid" /></td>
                     </tr>
                   ))}
                   {filteredAfterSales.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-fortis-mid">
+                      <td colSpan={8} className="px-6 py-12 text-center text-fortis-mid">
                         <div className="flex flex-col items-center gap-3">
                           <Search size={32} className="opacity-20" />
                           <p className="text-sm font-bold opacity-50">Nenhum cliente encontrado</p>
@@ -471,18 +572,16 @@ export const AfterSales: React.FC = () => {
                   )}
                 </div>
               )}
-            </div>
+          </div>
 
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              onItemsPerPageChange={setItemsPerPage}
-              totalItems={sortedAfterSales.length}
-            />
-          </>
-        )}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={setItemsPerPage}
+            totalItems={sortedAfterSales.length}
+          />
       </div>
 
       {selectedLead && (

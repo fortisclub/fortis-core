@@ -56,8 +56,9 @@ interface AppContextType {
     totalLeads: number;
     totalCustomers: number;
     totalSalesValue: number;
-    statusCounts: Record<string, number>;
+    leadsStatusCounts: Record<string, number>;
     ufCounts: Record<string, number>;
+    channelCounts: Record<string, number>;
     afterSalesCounts: Record<string, number>;
     totalInvestment: number;
     totalLandingPageViews: number;
@@ -68,6 +69,7 @@ interface AppContextType {
     paidSalesValue: number;
     totalPeriodSalesValue: number;
     acquisitionTrend: { month: string; value: number }[];
+    salesDaily: { date: string; displayDate: string; count: number }[];
     salesBuckets: { range: string; count: number }[];
     prev: {
       totalLeads: number;
@@ -114,7 +116,6 @@ const FIELD_LABELS: Record<string, string> = {
 
   status: 'Status',
   afterSalesStatus: 'Status de Pós-venda',
-  afterSalesPhase: 'Fase de Pós-venda',
   responsibleId: 'Responsável',
   channel: 'Canal',
   origin: 'Origem',
@@ -284,8 +285,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     totalLeads: 0,
     totalCustomers: 0,
     totalSalesValue: 0,
-    statusCounts: {} as Record<string, number>,
+    leadsStatusCounts: {} as Record<string, number>,
     ufCounts: {} as Record<string, number>,
+    channelCounts: {} as Record<string, number>,
     afterSalesCounts: {} as Record<string, number>,
     totalInvestment: 0,
     totalLandingPageViews: 0,
@@ -296,6 +298,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paidSalesValue: 0,
     totalPeriodSalesValue: 0,
     acquisitionTrend: [],
+    salesDaily: [] as { date: string; displayDate: string; count: number }[],
     salesBuckets: [] as { range: string; count: number }[],
     prev: {
       totalLeads: 0,
@@ -352,6 +355,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    if (endDate > now) {
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    }
+
     // Calcular Período Anterior para Comparativo
     const prevStartDate = new Date(startDate);
     const prevEndDate = new Date(endDate);
@@ -384,7 +391,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const pStartDateStr = pStartStr.split('T')[0];
     const pEndDateStr = pEndStr.split('T')[0];
 
-    // Queries em paralelo para atual, anterior e GLOBAL
     const [
       { count: totalLeads },
       { count: prevTotalLeads },
@@ -400,7 +406,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ] = await Promise.all([
       supabase.from('leads').select('*', { count: 'exact', head: true }).gte('created_at', startStr).lte('created_at', endStr),
       supabase.from('leads').select('*', { count: 'exact', head: true }).gte('created_at', pStartStr).lte('created_at', pEndStr),
-      supabase.from('leads').select('id, status, after_sales_status, created_at, origin, uf').order('created_at', { ascending: false }).limit(10000),
+      supabase.from('leads').select('id, status, after_sales_status, created_at, channel, uf').order('created_at', { ascending: false }).limit(10000),
       supabase.rpc('get_meta_ads_investment', { start_date: startDateStr, end_date: endDateStr }),
       supabase.rpc('get_meta_ads_investment', { start_date: pStartDateStr, end_date: pEndDateStr }),
       supabase.from('lead_purchases').select('*').gte('date', startDateStr).lte('date', endDateStr).limit(10000),
@@ -408,36 +414,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabase.from('lead_purchases').select('lead_id, value, date, status, lead_origin').limit(100000), // GLOBAL
       supabase.rpc('get_meta_ads_investment'), // GLOBAL
       supabase.from('leads').select('*', { count: 'exact', head: true }).eq('origin', 'Tráfego pago'), // GLOBAL
-      supabase.from('leads').select('status, last_purchase_at, uf').gte('last_purchase_at', startDateStr).lte('last_purchase_at', endDateStr), // PERIOD DATA
+      supabase.from('leads').select('status, last_purchase_at, uf, channel').gte('last_purchase_at', startStr).lte('last_purchase_at', endStr), // PERIOD DATA (Purchases)
     ]);
 
     // --- Processamento de Dados de Período (Charts) ---
-    const sCounts: Record<string, number> = {};
     const ufCounts: Record<string, number> = {};
+    const channelCounts: Record<string, number> = {};
     const trendMap: Record<string, number> = {};
     const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
     const useDailyGrouping = diffDays <= 45;
 
-    const periodLeads = periodLeadsRes.data || [];
+    const periodPurchasesLeads = periodLeadsRes.data || [];
 
-    periodLeads.forEach(row => {
+    // --- Processamento de Vendas (UF e Canal) ---
+    periodPurchasesLeads.forEach(row => {
       const rowDate = new Date(fixTz(row.last_purchase_at));
 
       // Trend Map
       let sortKey = useDailyGrouping ? `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}-${String(rowDate.getDate()).padStart(2, '0')}` : `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
       trendMap[sortKey] = (trendMap[sortKey] || 0) + 1;
 
-      // Status Counts
-      if (!['PRIMEIRA_COMPRA', 'RECORRENTE', 'VIP', 'INATIVO', 'GANHO', 'FINALIZADO'].includes(row.status)) {
-        const effectiveStatus = row.status === 'SEM_CLASSIFICACAO' ? 'PERDIDO' : row.status;
-        sCounts[effectiveStatus] = (sCounts[effectiveStatus] || 0) + 1;
-      } else {
-        sCounts['GANHO'] = (sCounts['GANHO'] || 0) + 1;
-      }
-
       // UF Counts
       if (row.uf) {
         ufCounts[row.uf] = (ufCounts[row.uf] || 0) + 1;
+      }
+      // Channel Counts
+      if (row.channel) {
+        channelCounts[row.channel] = (channelCounts[row.channel] || 0) + 1;
       }
     });
 
@@ -456,10 +459,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { month: label, value };
       });
 
-    // --- Processamento Global (After Sales) ---
-    const asCounts: Record<string, number> = {
-      'PRIMEIRA_COMPRA': 0, 'VIP': 0, 'RECORRENTE': 0, 'INATIVO': 0
-    };
+    // --- Processamento Global (Unified Status) ---
+    const leadsStatusCounts: Record<string, number> = {};
     const AFTER_SALES_KEYS = ['PRIMEIRA_COMPRA', 'RECORRENTE', 'VIP', 'INATIVO', 'GANHO', 'FINALIZADO'];
 
     // Map global purchases to calculate derived after-sales status
@@ -485,16 +486,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         let effectiveStatus = (row.status || 'NOVO') as LeadStatus;
         let effectiveAfterSalesStatus = row.after_sales_status as AfterSalesStatus;
 
-        // Same logic as processLeads for consistency
         if (statsInfo && statsInfo.count > 0) {
           const lastPurchaseDate = new Date(fixTz(statsInfo.lastDate));
-          const diffDays = (new Date().getTime() - lastPurchaseDate.getTime()) / (1000 * 3600 * 24);
+          const diffDaysNow = (new Date().getTime() - lastPurchaseDate.getTime()) / (1000 * 3600 * 24);
 
           if (statsInfo.total > 1000) {
             effectiveAfterSalesStatus = 'VIP';
           } else if (statsInfo.count > 1) {
             effectiveAfterSalesStatus = 'RECORRENTE';
-          } else if (diffDays > 90) {
+          } else if (diffDaysNow > 90) {
             effectiveAfterSalesStatus = 'INATIVO';
           } else {
             effectiveAfterSalesStatus = 'PRIMEIRA_COMPRA';
@@ -505,10 +505,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         const asStatus = effectiveAfterSalesStatus || (AFTER_SALES_KEYS.includes(effectiveStatus) ? effectiveStatus : undefined);
-
-        if (asStatus && asCounts.hasOwnProperty(asStatus)) {
-          asCounts[asStatus]++;
-        }
+        const finalStatus = asStatus || effectiveStatus;
+        leadsStatusCounts[finalStatus] = (leadsStatusCounts[finalStatus] || 0) + 1;
       });
     }
 
@@ -516,11 +514,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const tInv = Number(invRpcRes.data) || 0;
     const purchasesPeriod = (purchasesPeriodRes.data || []).filter(p => PAID_PURCHASE_STATUSES.includes(p.status || 'Pago'));
 
-    // Faturamento e Contagem específicos de TRÁFEGO PAGO (para CAC/ROAS/LTV)
     const pVal = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').reduce((acc, p) => acc + Number(p.value), 0) || 0;
-    const paidPurchasesCount = purchasesPeriod.filter(p => p.lead_origin === 'Tráfego pago').length || 0;
-
-    // Faturamento e Contagem GLOBAIS (para os cards principais de Faturamento e Compras)
     const totalPeriodVal = purchasesPeriod.reduce((acc, p) => acc + Number(p.value), 0) || 0;
     const totalPurchasesCount = purchasesPeriod.length || 0;
 
@@ -528,15 +522,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const prevTInv = Number(prevInvRpcRes.data) || 0;
     const prevPurchasesPeriodResult = (prevPurchasesPeriodRes.data || []).filter(p => PAID_PURCHASE_STATUSES.includes(p.status || 'Pago'));
     const prevPVal = prevPurchasesPeriodResult.filter(p => p.lead_origin === 'Tráfego pago').reduce((acc, p) => acc + Number(p.value), 0) || 0;
-
     const prevTotalPeriodVal = prevPurchasesPeriodResult.reduce((acc, p) => acc + Number(p.value), 0) || 0;
     const prevTotalPurchasesCount = prevPurchasesPeriodResult.length || 0;
 
     // === GLOBAIS / ALL-TIME ===
-    const allTimePurchases = allPurchasesRes.data || [];
-    const allTimeRevenue = allTimePurchases.reduce((acc, p) => acc + Number(p.value), 0) || 0;
-    const allTimeDistinctCustomers = new Set(allTimePurchases.map(p => p.lead_id)).size;
-    const allTimePurchasesCount = allTimePurchases.length;
+    const allTimePurchasesForStats = allPurchasesRes.data || [];
+    const allTimeRevenue = allTimePurchasesForStats.reduce((acc, p) => acc + Number(p.value), 0) || 0;
+    const allTimeDistinctCustomers = new Set(allTimePurchasesForStats.map(p => p.lead_id)).size;
+    const allTimePurchasesCount = allTimePurchasesForStats.length;
     const allTimeInvestment = Number(allInvRpcRes.data) || 0;
     const allTimePaidLeads = allPaidLeadsRes.count || 0;
 
@@ -547,7 +540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       { range: '25 a 31', count: 0 }
     ];
 
-    allTimePurchases.forEach(p => {
+    allTimePurchasesForStats.forEach(p => {
       const day = new Date(fixTz(p.date)).getDate();
       if (day <= 8) buckets[0].count++;
       else if (day <= 16) buckets[1].count++;
@@ -555,13 +548,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       else buckets[3].count++;
     });
 
+    // --- Daily Sales for the Period ---
+    const salesDailyMap: Record<string, number> = {};
+    const salesDailyLabels: string[] = [];
+    let dRunner = new Date(startDate);
+    const mDays = 366; 
+    let dCount = 0;
+    
+    while (dRunner <= endDate && dCount < mDays) {
+      const dStr = dRunner.toISOString().split('T')[0];
+      salesDailyMap[dStr] = 0;
+      salesDailyLabels.push(dStr);
+      dRunner.setDate(dRunner.getDate() + 1);
+      dCount++;
+    }
+
+    purchasesPeriod.forEach(p => {
+      const dStr = fixTz(p.date).split('T')[0];
+      if (salesDailyMap[dStr] !== undefined) {
+        salesDailyMap[dStr]++;
+      }
+    });
+
+    const salesDaily = salesDailyLabels.map(d => ({
+      date: d,
+      displayDate: new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      count: salesDailyMap[d]
+    }));
+
     setGlobalStats({
       totalLeads: totalLeads || 0,
       totalCustomers: allTimeDistinctCustomers,
       totalSalesValue: allTimeRevenue,
-      statusCounts: sCounts,
+      leadsStatusCounts,
       ufCounts,
-      afterSalesCounts: asCounts,
+      channelCounts,
+      afterSalesCounts: {},
       totalInvestment: tInv,
       totalLandingPageViews: 0,
       totalAdsPurchases: allTimePurchasesCount,
@@ -571,6 +593,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       paidSalesValue: pVal,
       totalPeriodSalesValue: totalPeriodVal,
       acquisitionTrend,
+      salesDaily,
       salesBuckets: buckets,
       prev: {
         totalLeads: prevTotalLeads || 0,
@@ -839,7 +862,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone: l.phone || '',
         status: currentStatus,
         afterSalesStatus: currentAfterSalesStatus,
-        afterSalesPhase: (l.after_sales_phase as any) === 'A_CONTACTAR' ? 'A_CONTATAR' : (l.after_sales_phase || undefined),
         responsibleId: l.responsible_id,
         tags: Array.isArray(l.tags) ? l.tags : [],
         channel: l.channel || 'Não informado',
@@ -1054,11 +1076,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (updates.addressNumber !== undefined) dataUpdates.address_number = updates.addressNumber;
     if (updates.district !== undefined) dataUpdates.district = updates.district;
     if (updates.city !== undefined) dataUpdates.city = updates.city;
-    if (updates.afterSalesPhase !== undefined) {
-      dataUpdates.after_sales_phase = updates.afterSalesPhase === null ? null : updates.afterSalesPhase;
-    }
     if (updates.afterSalesStatus === null) dataUpdates.after_sales_status = null;
-    if (updates.afterSalesPhase === null) dataUpdates.after_sales_phase = null;
 
     const { error } = await supabase.from('leads').update(dataUpdates).eq('id', id);
 

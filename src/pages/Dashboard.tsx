@@ -30,20 +30,31 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const pieData = useMemo(() => {
+  const totalSalesDailyCount = useMemo(() => {
+    return (globalStats.salesDaily || []).reduce((acc: number, curr: any) => acc + (curr.count || 0), 0);
+  }, [globalStats.salesDaily]);
+
+  const salesUfData = useMemo(() => {
     return Object.entries(globalStats.ufCounts || {})
       .sort(([, a], [, b]) => b - a)
-      .map(([key, value]) => ({
-        name: key,
-        value
-      }));
+      .map(([key, value]) => ({ name: key, value }));
   }, [globalStats.ufCounts]);
 
-  const totalLeadsPie = pieData.reduce((acc, curr) => acc + curr.value, 0);
+  const salesChannelData = useMemo(() => {
+    return Object.entries(globalStats.channelCounts || {})
+      .sort(([, a], [, b]) => b - a)
+      .map(([key, value]) => ({ name: key, value }));
+  }, [globalStats.channelCounts]);
 
-  const totalSalesBucketsCount = useMemo(() => {
-    return (globalStats.salesBuckets || []).reduce((acc: number, curr: any) => acc + (curr.count || 0), 0);
-  }, [globalStats.salesBuckets]);
+  const leadsStatusData = useMemo(() => {
+    return Object.entries(globalStats.leadsStatusCounts || {})
+      .sort(([, a], [, b]) => b - a)
+      .map(([key, value]) => ({ name: key, value }));
+  }, [globalStats.leadsStatusCounts]);
+
+  const totalSalesUf = salesUfData.reduce((acc, curr) => acc + curr.value, 0);
+  const totalSalesChannel = salesChannelData.reduce((acc, curr) => acc + curr.value, 0);
+  const totalLeadsStatus = leadsStatusData.reduce((acc, curr) => acc + curr.value, 0);
 
   // Helpers para comparativo
   const calculateChange = (current: number, previous: number) => {
@@ -188,24 +199,31 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-8">
-        <div className="col-span-2 bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
+      <div className="grid grid-cols-1 gap-8">
+        <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-bold flex items-center gap-2">
-              Vendas por Período <span className="text-[10px] bg-fortis-brand/10 text-fortis-brand px-2 py-0.5 rounded-full uppercase">Todo período</span>
+              Vendas por Período
             </h3>
-            <Calendar size={18} className="text-blue-400" />
+            <div className="flex items-center gap-4">
+               <div className="flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-[#588575]" />
+                 <span className="text-[10px] font-black text-fortis-mid uppercase tracking-widest">Vendas</span>
+               </div>
+               <Calendar size={18} className="text-blue-400" />
+            </div>
           </div>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={globalStats.salesBuckets} margin={{ top: 20 }}>
+              <BarChart data={globalStats.salesDaily} margin={{ top: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
-                <XAxis dataKey="range" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
+                <XAxis dataKey="displayDate" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} />
                 <Tooltip
                   cursor={{ fill: 'rgba(88, 133, 117, 0.1)' }}
                   contentStyle={{ backgroundColor: '#141F28', border: '1px solid #2B373E', borderRadius: '12px' }}
                   itemStyle={{ color: '#588575', fontWeight: 'bold' }}
+                  labelStyle={{ color: '#fff', marginBottom: '4px', fontSize: '12px' }}
                 />
                 <Bar dataKey="count" fill="#588575" radius={[6, 6, 0, 0]} animationDuration={2000}>
                   <LabelList
@@ -214,11 +232,7 @@ export const Dashboard: React.FC = () => {
                     fill="#a1a1aa"
                     fontSize={11}
                     fontWeight="bold"
-                    formatter={(value: number) => {
-                      if (!value) return '';
-                      const percentage = totalSalesBucketsCount > 0 ? ((Number(value) / totalSalesBucketsCount) * 100).toFixed(1).replace('.', ',') : "0,0";
-                      return `${value} (${percentage}%)`;
-                    }}
+                    formatter={(value: number) => value || ''}
                   />
                 </Bar>
               </BarChart>
@@ -226,36 +240,114 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
-          <h3 className="font-bold mb-8">Leads por UF</h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
-                  animationDuration={1500}
-                >
-                  {pieData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                  formatter={(value: number) => [`${value} (${((value / totalLeadsPie) * 100).toFixed(1)}%)`, 'Quantidade']}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-3 mt-4">
-            {pieData.map((d, i) => (
-              <div key={i} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 font-semibold">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="text-fortis-mid">{d.name}</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Compras por UF */}
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+            <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Compras por UF</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={salesUfData}
+                    cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
+                    animationDuration={1500}
+                  >
+                    {salesUfData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value: number) => [`${value} (${((value / (totalSalesUf || 1)) * 100).toFixed(1)}%)`, 'Vendas']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+              {salesUfData.map((d, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-fortis-mid">{d.name}</span>
+                  </div>
+                  <span className="font-bold text-white">{d.value}</span>
                 </div>
-                <span className="font-bold">{d.value}</span>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Compras por Origem */}
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+            <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Compras por Canal</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={salesChannelData}
+                    cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
+                    animationDuration={1500}
+                  >
+                    {salesChannelData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value: number) => [`${value} (${((value / (totalSalesChannel || 1)) * 100).toFixed(1)}%)`, 'Vendas']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+              {salesChannelData.map((d, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-fortis-mid">{d.name}</span>
+                  </div>
+                  <span className="font-bold text-white">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Leads por Status */}
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+            <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Leads por Status</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={leadsStatusData}
+                    cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
+                    animationDuration={1500}
+                  >
+                    {leadsStatusData.map((d, index) => {
+                       const statusColor = LEAD_STATUS_MAP[d.name as any]?.color || COLORS[index % COLORS.length];
+                       return <Cell key={index} fill={statusColor} stroke="none" />;
+                    })}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value: number) => [`${value} (${((value / (totalLeadsStatus || 1)) * 100).toFixed(1)}%)`, 'Leads']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+              {leadsStatusData.map((d, i) => {
+                const statusLabel = LEAD_STATUS_MAP[d.name as any]?.label || d.name;
+                const statusColor = LEAD_STATUS_MAP[d.name as any]?.color || COLORS[i % COLORS.length];
+                return (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
+                      <span className="text-fortis-mid">{statusLabel}</span>
+                    </div>
+                    <span className="font-bold text-white">{d.value}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

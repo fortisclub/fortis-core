@@ -53,7 +53,6 @@ export type LeadStatus = 'NOVO' | 'CONTATO' | 'FOLLOW_UP' | 'QUALIFICADO' | 'AGU
 
 export type AfterSalesStatus = 'PRIMEIRA_COMPRA' | 'RECORRENTE' | 'VIP' | 'INATIVO';
 
-export type AfterSalesPhase = 'A_CONTATAR' | 'EM_ATENDIMENTO' | 'FOLLOW_UP' | 'QUALIFICADO' | 'SEM_INTERESSE';
 
 export interface LeadHistory {
   id: string;
@@ -74,7 +73,6 @@ export interface Lead {
 
   status: LeadStatus;
   afterSalesStatus?: AfterSalesStatus;
-  afterSalesPhase?: AfterSalesPhase;
   responsibleId: string;
   tags: string[];
   channel: string;

@@ -1,5 +1,5 @@
 
-import { LeadStatus, AfterSalesStatus, UserRole, AfterSalesPhase } from './types';
+import { LeadStatus, AfterSalesStatus, UserRole } from './types';
 
 export const COLORS = {
   brand: '#588575',
@@ -33,13 +33,6 @@ export const AFTER_SALES_STATUS_MAP: Record<AfterSalesStatus, { label: string; c
   INATIVO: { label: 'Inativo', color: '#EF4444' }
 };
 
-export const AFTER_SALES_PHASE_MAP: Record<AfterSalesPhase, { label: string; color: string }> = {
-  A_CONTATAR: { label: 'A Contatar', color: '#A78BFA' },
-  EM_ATENDIMENTO: { label: 'Em Atendimento', color: '#F97316' },
-  FOLLOW_UP: { label: 'Follow Up', color: '#FBBF24' },
-  QUALIFICADO: { label: 'Qualificado', color: '#34D399' },
-  SEM_INTERESSE: { label: 'Sem Interesse no Momento', color: '#EF4444' }
-};
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrador',
