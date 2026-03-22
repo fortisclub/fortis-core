@@ -158,7 +158,7 @@ export const FlowDetails: React.FC = () => {
             .select(`
                 *,
                 lead:leads(
-                    id, name, email, phone, status, after_sales_status, after_sales_phase, responsible_id, tags, uf, cpf, address, address_number, district, city
+                    id, name, email, phone, status, after_sales_status, responsible_id, tags, uf, cpf, address, address_number, district, city
                 )
             `)
             .eq('flow_id', id)
@@ -308,7 +308,7 @@ export const FlowDetails: React.FC = () => {
             .select(`
                 *,
                 lead:leads(
-                    id, name, email, phone, status, after_sales_status, after_sales_phase, responsible_id, tags, uf, cpf, address, address_number, district, city
+                    id, name, email, phone, status, after_sales_status, responsible_id, tags, uf, cpf, address, address_number, district, city
                 )
             `)
             .single();

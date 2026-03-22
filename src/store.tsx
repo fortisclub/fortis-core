@@ -552,9 +552,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const salesDailyMap: Record<string, number> = {};
     const salesDailyLabels: string[] = [];
     let dRunner = new Date(startDate);
-    const mDays = 366; 
+    const mDays = 366;
     let dCount = 0;
-    
+
     while (dRunner <= endDate && dCount < mDays) {
       const dStr = dRunner.toISOString().split('T')[0];
       salesDailyMap[dStr] = 0;
@@ -1031,7 +1031,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         address_number: newLeadData.addressNumber,
         district: newLeadData.district,
         city: newLeadData.city,
-        after_sales_phase: null,
         last_purchase_at: null
       }])
       .select()
