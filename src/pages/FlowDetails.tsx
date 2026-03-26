@@ -846,9 +846,8 @@ export const FlowDetails: React.FC = () => {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all ${
-                                    showFilters ? 'bg-fortis-brand border-fortis-brand text-white' : 'bg-fortis-panel border-fortis-surface text-fortis-mid hover:text-white'
-                                }`}
+                                className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all ${showFilters ? 'bg-fortis-brand border-fortis-brand text-white' : 'bg-fortis-panel border-fortis-surface text-fortis-mid hover:text-white'
+                                    }`}
                             >
                                 <Filter size={16} /> Filtros {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-white ml-1" />}
                             </button>

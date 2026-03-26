@@ -1043,12 +1043,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (data) {
-      await supabase.from('lead_history').insert([{
+      const historyItems = [{
         lead_id: data.id,
         type: 'NOTE',
         description: 'Lead cadastrado no ecossistema Fortis.',
         user_id: currentUser?.id
-      }]);
+      }];
+
+      if (newLeadData.notes) {
+        historyItems.push({
+          lead_id: data.id,
+          type: 'NOTE',
+          description: `Observação inicial: ${newLeadData.notes}`,
+          user_id: currentUser?.id
+        });
+      }
+
+      await supabase.from('lead_history').insert(historyItems);
       await fetchLeads();
       addNotification('Sucesso', 'Lead criado com sucesso!', 'SUCCESS');
     }
@@ -1090,13 +1101,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const k = key as keyof Lead;
       const ignored = ['history', 'purchaseHistory', 'tags', 'lastContactAt', 'lastPurchaseAt'];
       if (!ignored.includes(k) && updates[k] !== (lead as any)[k]) {
+        const isNote = k === 'notes';
         historyEntries.push({
           lead_id: id,
-          type: 'EDIT',
+          type: isNote ? 'NOTE' : 'EDIT',
           field: k,
           old_value: String((lead as any)[k] || 'Nenhum'),
           new_value: String(updates[k]),
-          description: `Alterou ${FIELD_LABELS[k] || k}`,
+          description: isNote ? `Observação: ${updates[k]}` : `Alterou ${FIELD_LABELS[k] || k}`,
           user_id: currentUser?.id
         });
       }
@@ -1126,7 +1138,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       user_id: currentUser?.id
     }]);
 
-    // No need to fetchLeads here, history is fetched on demand in the modal
+    if (error) {
+      console.error('Erro ao adicionar nota:', error);
+      addNotification('Erro', 'Não foi possível salvar a observação.', 'ERROR');
+      return;
+    }
+
+    addNotification('Sucesso', 'Observação registrada com sucesso!', 'SUCCESS');
   };
 
   const addLeadSale = async (leadId: string, value: number, note?: string) => {

@@ -107,12 +107,17 @@ export const Leads: React.FC = () => {
     setCurrentPage(1);
   }, [localFilters, view]);
 
-  const handleRegisterEntry = () => {
+  const handleRegisterEntry = async () => {
     if (!selectedLead) return;
 
     if (entryType === 'NOTE' && manualNote.trim()) {
-      addLeadNote(selectedLead.id, manualNote);
+      await addLeadNote(selectedLead.id, manualNote);
       setManualNote('');
+      
+      // Re-busca o histórico imediatamente para atualizar a UI
+      const updatedHistory = await fetchLeadHistory(selectedLead.id);
+      setHistory(updatedHistory);
+      
       setTimeout(() => setActiveDetailTab('history'), 100);
     } else if (entryType === 'SALE' && manualValue) {
       const value = parseFloat(manualValue.replace(',', '.'));

@@ -121,10 +121,15 @@ export const AfterSales: React.FC = () => {
     setCurrentPage(1);
   }, [localFilters]);
 
-  const handleRegisterEntry = () => {
+  const handleRegisterEntry = async () => {
     if (!selectedLead || !manualNote.trim()) return;
-    addLeadNote(selectedLead.id, manualNote);
+    await addLeadNote(selectedLead.id, manualNote);
     setManualNote('');
+
+    // Re-busca o histórico imediatamente
+    const updatedHistory = await fetchLeadHistory(selectedLead.id);
+    setHistory(updatedHistory);
+    
     setTimeout(() => setActiveDetailTab('history'), 100);
   };
 

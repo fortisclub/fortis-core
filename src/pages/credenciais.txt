@@ -1,0 +1,4 @@
+git config --global user.name "Fortis Club"
+git config --global user.email "fortisclub1@gmail.com"
+
+Token: sbp_8eb03130c726995baab9d963b9eab4e6548bcdb0
