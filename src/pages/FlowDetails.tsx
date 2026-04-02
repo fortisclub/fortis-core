@@ -26,7 +26,7 @@ type ViewMode = 'LIST' | 'KANBAN' | 'CALENDAR';
 export const FlowDetails: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { cadenceFlows, updateCadenceFlow, leads, users, currentUser } = useApp();
+    const { cadenceFlows, updateCadenceFlow, leads, users, currentUser, tags: availableTags, updateLead, addTag } = useApp();
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
 
     const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -43,6 +43,9 @@ export const FlowDetails: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState('');
     const [filterResponsible, setFilterResponsible] = useState('');
     const [showFilters, setShowFilters] = useState(false);
+
+    const [tagSearch, setTagSearch] = useState('');
+    const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
     // close period dropdown on outside click - removed (using panel pattern now)
 
@@ -400,6 +403,14 @@ export const FlowDetails: React.FC = () => {
                             <span className="text-[9px] font-black px-1 py-0.5 rounded shadow-sm border uppercase tracking-wider bg-fortis-dark text-fortis-mid border-fortis-surface">
                                 {flow?.stages?.find(s => s.id === task.stageId)?.name || 'Etapa'}
                             </span>
+                            {lead.tags && lead.tags.map(tagLabel => {
+                                const tagConfig = availableTags.find(t => t.label === tagLabel);
+                                return (
+                                    <span key={tagLabel} className="text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm text-white" style={{ backgroundColor: tagConfig?.color || '#575756' }}>
+                                        {tagLabel}
+                                    </span>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -645,6 +656,16 @@ export const FlowDetails: React.FC = () => {
                                             </div>
 
                                             <div className="flex flex-wrap gap-1">
+                                                {lead.tags && lead.tags.map(tagLabel => {
+                                                    const tagConfig = availableTags.find(t => t.label === tagLabel);
+                                                    return (
+                                                        <span key={tagLabel} className="text-[9px] font-bold px-2 py-0.5 rounded shadow-sm text-white truncate max-w-[80px]" style={{
+                                                            backgroundColor: tagConfig?.color || '#575756'
+                                                        }}>
+                                                            {tagLabel}
+                                                        </span>
+                                                    );
+                                                })}
                                                 {(() => {
                                                     const statusInfo = lead.status && LEAD_STATUS_MAP[lead.status as LeadStatus]
                                                         ? LEAD_STATUS_MAP[lead.status as LeadStatus]
@@ -799,13 +820,25 @@ export const FlowDetails: React.FC = () => {
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                                            <div className="flex-1">
-                                                <p className="font-bold text-white text-sm">{task.lead?.name}</p>
-                                                <p className="text-[10px] text-fortis-mid uppercase font-black tracking-widest mt-0.5">
-                                                    {flow?.stages?.find(s => s.id === task.stageId)?.name}
-                                                </p>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-white text-sm truncate">{task.lead?.name}</p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <p className="text-[10px] text-fortis-mid uppercase font-black tracking-widest truncate">
+                                                        {flow?.stages?.find(s => s.id === task.stageId)?.name}
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {task.lead?.tags && task.lead.tags.slice(0, 2).map(tagLabel => {
+                                                            const tagConfig = availableTags.find(t => t.label === tagLabel);
+                                                            return (
+                                                                <span key={tagLabel} className="text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm text-white max-w-[60px] truncate" style={{ backgroundColor: tagConfig?.color || '#575756' }}>
+                                                                    {tagLabel}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <ChevronRight size={14} className="text-fortis-mid group-hover:translate-x-1 transition-transform" />
+                                            <ChevronRight size={14} className="text-fortis-mid group-hover:translate-x-1 transition-transform shrink-0" />
                                         </div>
                                     </div>
                                 ))}
@@ -1061,6 +1094,125 @@ export const FlowDetails: React.FC = () => {
                                             <p className="text-xs text-fortis-mid">Data de Conclusão / Abordagem</p>
                                             <p className="font-bold text-white">{selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</p>
                                         </div>
+                                    </div>
+                                </div>
+                                <div className="border-t border-fortis-surface/50 pt-3">
+                                    <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Tags</h3>
+                                    <div className="relative">
+                                        <div className="bg-fortis-panel border border-fortis-surface rounded-lg p-2 min-h-[42px] focus-within:border-fortis-brand transition-colors">
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedTask.lead.tags?.map((tagLabel: string) => {
+                                                    const tagConfig = availableTags.find(t => t.label === tagLabel);
+                                                    return (
+                                                        <span
+                                                            key={tagLabel}
+                                                            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm"
+                                                            style={{ backgroundColor: tagConfig?.color || '#575756' }}
+                                                        >
+                                                            {tagLabel}
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    const newTags = (selectedTask.lead!.tags || []).filter(t => t !== tagLabel);
+                                                                    const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                    setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                    setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                    await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                }}
+                                                                className="hover:bg-black/20 rounded-full p-0.5"
+                                                            >
+                                                                <X size={10} />
+                                                            </button>
+                                                        </span>
+                                                    );
+                                                })}
+                                                <input
+                                                    type="text"
+                                                    placeholder="Pesquise ou adicione..."
+                                                    className="bg-transparent border-none outline-none text-xs text-white placeholder:text-fortis-mid flex-1 min-w-[100px]"
+                                                    value={tagSearch}
+                                                    onChange={(e) => {
+                                                        setTagSearch(e.target.value);
+                                                        setShowTagSuggestions(true);
+                                                    }}
+                                                    onFocus={() => setShowTagSuggestions(true)}
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter' && tagSearch.trim()) {
+                                                            e.preventDefault();
+                                                            const newTag = tagSearch.trim();
+                                                            if (!selectedTask.lead!.tags?.includes(newTag)) {
+                                                                const newTags = [...(selectedTask.lead!.tags || []), newTag];
+                                                                const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                if (!availableTags.some(t => t.label.toLowerCase() === newTag.toLowerCase())) {
+                                                                    await addTag(newTag);
+                                                                }
+                                                            }
+                                                            setTagSearch('');
+                                                            setShowTagSuggestions(false);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {showTagSuggestions && (tagSearch || availableTags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase())).length > 0) && (
+                                            <div className="absolute z-[60] left-0 right-0 mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+                                                {availableTags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => (
+                                                    <button
+                                                        key={tag.id}
+                                                        type="button"
+                                                        className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs hover:bg-fortis-surface transition-colors"
+                                                        onClick={async () => {
+                                                            if (!selectedTask.lead!.tags?.includes(tag.label)) {
+                                                                const newTags = [...(selectedTask.lead!.tags || []), tag.label];
+                                                                const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                            }
+                                                            setTagSearch('');
+                                                            setShowTagSuggestions(false);
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                            <span className="font-semibold">{tag.label}</span>
+                                                        </div>
+                                                        {selectedTask.lead!.tags?.includes(tag.label) && <Check size={14} className="text-fortis-brand" />}
+                                                    </button>
+                                                ))}
+                                                {tagSearch && !availableTags.some(t => t.label.toLowerCase() === tagSearch.toLowerCase()) && (
+                                                    <button
+                                                        type="button"
+                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-xs hover:bg-fortis-surface text-fortis-brand transition-colors font-bold"
+                                                        onClick={async () => {
+                                                            const newTagLabel = tagSearch.trim();
+                                                            if (!selectedTask.lead!.tags?.includes(newTagLabel)) {
+                                                                const newTags = [...(selectedTask.lead!.tags || []), newTagLabel];
+                                                                const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                if (!availableTags.some(t => t.label.toLowerCase() === newTagLabel.toLowerCase())) {
+                                                                    await addTag(newTagLabel);
+                                                                }
+                                                            }
+                                                            setTagSearch('');
+                                                            setShowTagSuggestions(false);
+                                                        }}
+                                                    >
+                                                        <Plus size={14} />
+                                                        Criar "{tagSearch}"
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                        {showTagSuggestions && (
+                                            <div className="fixed inset-0 z-[55]" onClick={() => setShowTagSuggestions(false)} />
+                                        )}
                                     </div>
                                 </div>
 

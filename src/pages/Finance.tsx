@@ -258,6 +258,8 @@ export const Finance: React.FC = () => {
         cashFlows.forEach(cf => {
             // A partir de 29/01/2026
             if (cf.data >= '2026-01-29') {
+                if (cf.tipo === 'ENTRADA' && cf.desc?.trim() === 'Recebimento Repasse') return;
+
                 const bank = cf.banco && cf.banco.trim() !== '' ? cf.banco : 'Outros';
                 if (!banks[bank]) banks[bank] = 0;
 

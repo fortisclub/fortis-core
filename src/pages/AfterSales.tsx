@@ -249,22 +249,9 @@ export const AfterSales: React.FC = () => {
 
             {isAddingFilter && (
               <div className="absolute top-full left-0 mt-2 w-56 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl z-[100] p-1 slide-in-from-top-2 animate-in duration-200">
-                <div className="p-2">
-                   <input 
-                     type="text" 
-                     placeholder="Pesquisar..." 
-                     className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold mb-2 ml-0"
-                     autoFocus
-                     onKeyDown={(e) => {
-                       if (e.key === 'Enter') {
-                         setLocalFilters({ ...localFilters, search: (e.target as HTMLInputElement).value });
-                         setIsAddingFilter(false);
-                         (e.target as HTMLInputElement).value = '';
-                       }
-                     }}
-                   />
-                </div>
+
                 {[
+                  { id: 'cliente', label: 'Nome do Cliente' },
                   { id: 'status', label: 'Status' },
                   { id: 'resp', label: 'Responsável' },
                   { id: 'fluxo', label: 'Fluxo' },
@@ -294,6 +281,7 @@ export const AfterSales: React.FC = () => {
                 <div className="relative bg-fortis-panel border border-fortis-surface rounded-2xl shadow-2xl p-6 w-[320px] pointer-events-auto space-y-4 slide-in-from-bottom-2 animate-in duration-200">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                      {filterMenuOpen === 'cliente' && 'Buscar Cliente'}
                       {filterMenuOpen === 'status' && 'Filtrar por Status'}
                       {filterMenuOpen === 'resp' && 'Filtrar por Responsável'}
                       {filterMenuOpen === 'fluxo' && 'Filtrar por Fluxo'}
@@ -307,6 +295,23 @@ export const AfterSales: React.FC = () => {
                   </div>
 
                   <div className="space-y-1 max-h-[300px] overflow-auto custom-scrollbar">
+                    {filterMenuOpen === 'cliente' && (
+                      <div className="space-y-4 p-1">
+                        <input
+                          type="text"
+                          placeholder="Digite nome ou e-mail..."
+                          className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs outline-none focus:border-fortis-brand text-white font-bold"
+                          autoFocus
+                          value={localFilters.search}
+                          onChange={(e) => setLocalFilters({ ...localFilters, search: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              setFilterMenuOpen(null);
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                     {filterMenuOpen === 'status' && Object.entries(AFTER_SALES_STATUS_MAP).map(([key, val]) => (
                       <div
                         key={key}
@@ -430,7 +435,8 @@ export const AfterSales: React.FC = () => {
                         (filterMenuOpen === 'resp' && localFilters.responsibleId.length > 0) || 
                         (filterMenuOpen === 'fluxo' && localFilters.flowId.length > 0) ||
                         (filterMenuOpen === 'origem' && localFilters.origin.length > 0) ||
-                        (filterMenuOpen === 'canal' && localFilters.channel.length > 0)
+                        (filterMenuOpen === 'canal' && localFilters.channel.length > 0) ||
+                        (filterMenuOpen === 'cliente' && localFilters.search !== '')
                       ) && (
                         <button 
                           onClick={() => {
@@ -440,6 +446,7 @@ export const AfterSales: React.FC = () => {
                             else if (filterMenuOpen === 'fluxo') setLocalFilters({ ...localFilters, flowId: [] });
                             else if (filterMenuOpen === 'origem') setLocalFilters({ ...localFilters, origin: [] });
                             else if (filterMenuOpen === 'canal') setLocalFilters({ ...localFilters, channel: [] });
+                            else if (filterMenuOpen === 'cliente') setLocalFilters({ ...localFilters, search: '' });
                           }}
                           className="text-[10px] font-black text-fortis-mid hover:text-red-400 uppercase tracking-widest transition-all mr-0"
                         >
