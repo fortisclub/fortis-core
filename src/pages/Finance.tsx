@@ -299,8 +299,8 @@ export const Finance: React.FC = () => {
         ? ((monthlyExpenses - prevMonthlyExpenses) / prevMonthlyExpenses) * 100
         : 0;
 
-    const isOperationalRevenue = (cf: CashFlow) => cf.rawType === 'C' && !['Transferências de entrada', 'Entrada Não Operacional', 'Saída Não Operacional'].includes(cf.categoria);
-    const isOperationalExpense = (cf: CashFlow) => cf.rawType === 'D' && !['Transferências de saída', 'Entrada Não Operacional', 'Saída Não Operacional'].includes(cf.categoria);
+    const isOperationalRevenue = (cf: CashFlow) => cf.rawType === 'C' && cf.desc !== 'Recebimento Repasse' && cf.desc !== 'Recebimento de repasse' && !['Transferências de entrada', 'Entrada Não Operacional', 'Saída Não Operacional'].includes(cf.categoria);
+    const isOperationalExpense = (cf: CashFlow) => cf.rawType === 'D' && cf.desc !== 'Recebimento Repasse' && cf.desc !== 'Recebimento de repasse' && !['Transferências de saída', 'Entrada Não Operacional', 'Saída Não Operacional'].includes(cf.categoria);
 
     const opResultEntradas = periodCashFlows
         .filter(isOperationalRevenue)
