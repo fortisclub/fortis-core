@@ -390,22 +390,22 @@ export const Finance: React.FC = () => {
     // Chart: Donut (Revenue vs Expenses)
     const statsDonutData = useMemo(() => [
         { name: 'Receita', value: opResultEntradas, color: '#34D399' },
-        { name: 'Despesas', value: opResultSaidas, color: '#F87171' }
-    ], [opResultEntradas, opResultSaidas]);
+        { name: 'Despesas', value: totalExpensesGlobal, color: '#F87171' }
+    ], [opResultEntradas, totalExpensesGlobal]);
 
-    // Chart: Expenses by category (from Cash Flow)
+    // Chart: Expenses by category
     const topExpensesData = useMemo(() => {
         const cats: Record<string, number> = {};
-        periodCashFlows.filter(isOperationalExpense).forEach(cf => {
-            const c = cf.categoria || 'Não categorizada';
+        periodPayables.forEach(ap => {
+            const c = ap.categoria || 'Não categorizada';
             if (!cats[c]) cats[c] = 0;
-            cats[c] += Number(cf.realizado || cf.valor || 0);
+            cats[c] += Number(ap.valor);
         });
 
         return Object.entries(cats)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
-    }, [periodCashFlows]);
+    }, [periodPayables]);
 
     // Chart: Faturamento Diário (Line Chart)
     const dailyRevenueData = useMemo(() => {
@@ -468,20 +468,56 @@ export const Finance: React.FC = () => {
         return data;
     }, [accountsPayable]);
 
+    // Chart: Projeção 14 dias
+    const projection14DaysData = useMemo(() => {
+        const data = [];
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < 14; i++) {
+            const target = new Date(tomorrow);
+            target.setDate(target.getDate() + i);
+            
+            const targetDateStr = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+
+            const entradas = cashFlows
+                .filter(cf => cf.desc === 'Recebimento Repasse' && cf.data.startsWith(targetDateStr))
+                .reduce((sum, curr) => sum + Number(curr.valor || 0), 0);
+
+            const saidas = accountsPayable
+                .filter(ap => ap.data_vencimento.startsWith(targetDateStr))
+                .reduce((sum, curr) => sum + Number(curr.valor || 0), 0);
+
+            const labelStr = `${String(target.getDate()).padStart(2, '0')}/${String(target.getMonth() + 1).padStart(2, '0')}`;
+
+            data.push({
+                name: labelStr,
+                fullDate: formatDayMonthYear(target),
+                Entradas: entradas,
+                Saídas: saidas,
+                'Resultado Operacional': entradas - saidas
+            });
+        }
+        return data;
+    }, [cashFlows, accountsPayable]);
+
     const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
     // Extrato de Lançamentos
     const extratoList = useMemo(() => {
-        let list = cashFlows.map(cf => ({
-            data: cf.data,
-            desc: cf.desc || 'Registro',
-            cat: cf.categoria,
-            canal: cf.canal || '',
-            banco: cf.banco,
-            valor: Number(cf.realizado || cf.valor || 0),
-            tipo: cf.tipo,
-            id: cf.id || Math.random().toString()
-        }));
+        let list = cashFlows
+            .filter(cf => cf.desc !== 'Recebimento Repasse' && cf.desc !== 'Recebimento de repasse')
+            .map(cf => ({
+                data: cf.data,
+                desc: cf.desc || 'Registro',
+                cat: cf.categoria,
+                canal: cf.canal || '',
+                banco: cf.banco,
+                valor: Number(cf.realizado || cf.valor || 0),
+                tipo: cf.tipo,
+                id: cf.id || Math.random().toString()
+            }));
 
         if (statementFilterType !== 'TODOS') list = list.filter(l => l.tipo === statementFilterType);
         if (statementFilterCat !== 'TODAS') list = list.filter(l => l.cat === statementFilterCat);
@@ -753,11 +789,46 @@ export const Finance: React.FC = () => {
                 </div>
             </div>
 
+            {/* Row 2.6: Projeção 14 dias */}
+            <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold">
+                        Projeção dos próximos 14 dias:{' '}
+                        <span className={projection14DaysData.reduce((acc, curr) => acc + curr['Resultado Operacional'], 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                            {formatCurrency(projection14DaysData.reduce((acc, curr) => acc + curr['Resultado Operacional'], 0))}
+                        </span>
+                    </h3>
+                    <div className="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">
+                        Próximos 14 dias
+                    </div>
+                </div>
+                <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={projection14DaysData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} tickFormatter={(val) => `R$ ${val / 1000}k`} />
+                            <RechartsTooltip
+                                cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                                contentStyle={{ backgroundColor: '#141F28', border: '1px solid #2B373E', borderRadius: '12px' }}
+                                itemStyle={{ fontWeight: 'bold' }}
+                                formatter={(val: number) => formatCurrency(val)}
+                                labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
+                            />
+                            <Legend iconType="square" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '20px' }} />
+                            <Bar name="Entradas" dataKey="Entradas" fill="#014D40" radius={[4, 4, 0, 0]} />
+                            <Bar name="Saídas" dataKey="Saídas" fill="#990F0E" radius={[4, 4, 0, 0]} />
+                            <Bar name="Resultado Operacional" dataKey="Resultado Operacional" fill="#FBBF24" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
             {/* Row 3: Category Expenses & Donut */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Despesas por Categoria */}
                 <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 flex flex-col h-[480px]">
-                    <h3 className="font-bold mb-6">Despesas por Categoria (Fluxo de Caixa)</h3>
+                    <h3 className="font-bold mb-6">Despesas por Categoria</h3>
                     <div className="flex-1 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-fortis-surface">
                         <div style={{ height: `${Math.max(300, topExpensesData.length * 45)}px` }} className="w-full">
                             <ResponsiveContainer width="100%" height="100%">
