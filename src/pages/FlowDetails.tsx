@@ -574,7 +574,7 @@ export const FlowDetails: React.FC = () => {
     };
 
     const renderKanbanView = () => (
-        <div className="flex h-full gap-4 overflow-x-auto custom-scrollbar pb-4 animate-in fade-in duration-300">
+        <div className="absolute inset-0 flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar pb-4 animate-in fade-in duration-300">
             {/* Colunas do Fluxo */}
             {flow?.stages?.map((stage, index) => {
                 const colors = [
@@ -738,7 +738,11 @@ export const FlowDetails: React.FC = () => {
 
     const renderCalendarView = () => {
         const todayStr = new Date().toISOString().split('T')[0];
-        const days = Array.from({ length: 35 }, (_, i) => i + 1);
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const firstDay = getFirstDayOfMonth(year, month);
+        const daysInMonth = getDaysInMonth(year, month);
 
         const handleDayClick = (dayNum: number) => {
             const date = new Date();
@@ -748,9 +752,9 @@ export const FlowDetails: React.FC = () => {
         };
 
         return (
-            <div className="bg-fortis-panel border border-fortis-surface/50 rounded-2xl flex flex-col h-full animate-in fade-in duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-fortis-panel border border-fortis-surface/50 rounded-2xl flex flex-col animate-in fade-in duration-300 overflow-hidden">
                 <div className="p-4 border-b border-fortis-surface/50 flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-white capitalize">{new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</h2>
+                    <h2 className="text-lg font-bold text-white capitalize">{now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</h2>
                     <div className="flex flex-col sm:flex-row gap-2">
                         <button className="px-3 py-1.5 text-sm font-bold bg-fortis-dark text-white rounded-lg hover:bg-fortis-surface transition-colors flex items-center gap-1">
                             Hoje
@@ -766,9 +770,16 @@ export const FlowDetails: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="flex-1 grid grid-cols-7 grid-rows-5 overflow-hidden">
-                    {days.map((day, i) => {
-                        const tempDate = new Date(new Date().getFullYear(), new Date().getMonth(), day);
+                <div className="flex-1 grid grid-cols-7 grid-rows-6 overflow-hidden">
+                    {Array.from({ length: 42 }).map((_, i) => {
+                        const day = i - firstDay + 1;
+                        const isCurrentMonth = day > 0 && day <= daysInMonth;
+
+                        if (!isCurrentMonth) {
+                            return <div key={i} className={`border-r border-b border-fortis-surface/20 p-2 ${i % 7 === 6 ? 'border-r-0' : ''} ${i >= 35 ? 'border-b-0' : ''}`} />;
+                        }
+
+                        const tempDate = new Date(year, month, day);
                         const dateStr = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
                         const dayTasks = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === dateStr);
 
@@ -776,10 +787,10 @@ export const FlowDetails: React.FC = () => {
                             <div
                                 key={i}
                                 onClick={() => handleDayClick(day)}
-                                className={`border-r border-b border-fortis-surface/20 p-2 relative group hover:bg-fortis-surface/10 transition-colors cursor-pointer ${i % 7 === 6 ? 'border-r-0' : ''} ${i >= 28 ? 'border-b-0' : ''}`}
+                                className={`border-r border-b border-fortis-surface/20 p-2 relative group hover:bg-fortis-surface/10 transition-colors cursor-pointer ${i % 7 === 6 ? 'border-r-0' : ''} ${i >= 35 ? 'border-b-0' : ''}`}
                             >
-                                <span className={`text-sm font-bold ${day === new Date().getDate() ? 'bg-fortis-brand text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-fortis-mid'} group-hover:text-white transition-colors`}>
-                                    {day > 31 ? day - 31 : day}
+                                <span className={`text-sm font-bold ${day === now.getDate() ? 'bg-fortis-brand text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-fortis-mid'} group-hover:text-white transition-colors`}>
+                                    {day}
                                 </span>
                                 {dayTasks.length > 0 && (
                                     <div className="absolute bottom-2 right-2 flex items-center gap-1.5 px-1.5 py-1 bg-cyan-500/10 rounded-lg border border-cyan-500/20 group-hover:bg-cyan-500/20 transition-all">

@@ -270,9 +270,10 @@ export const Leads: React.FC = () => {
         )}
 
         {view === 'kanban' ? (
-          <div className="flex-1 overflow-x-auto pb-6 custom-scrollbar">
-            <div className="flex gap-4 h-full min-w-max">
-              {columns.map(status => (
+          <div className="flex-1 min-h-0 relative">
+            <div className="absolute inset-0 overflow-x-auto overflow-y-hidden pb-6 custom-scrollbar">
+              <div className="flex gap-4 h-full min-w-max">
+                {columns.map(status => (
                 <div
                   key={status}
                   className="w-72 flex flex-col h-full bg-fortis-panel/20 rounded-2xl border border-fortis-surface/40 overflow-hidden"
@@ -330,6 +331,7 @@ export const Leads: React.FC = () => {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </div>
         ) : (
