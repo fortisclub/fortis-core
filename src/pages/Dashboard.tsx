@@ -292,7 +292,7 @@ export const Dashboard: React.FC = () => {
           className={`pb-3 px-2 font-bold text-sm transition-all relative ${activeTab === 'cac-ltv' ? 'text-white' : 'text-fortis-mid hover:text-white'}`}
           onClick={() => setActiveTab('cac-ltv')}
         >
-          CAC x LTV
+          Retenção
           {activeTab === 'cac-ltv' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-fortis-brand shadow-[0_0_10px_rgba(88,133,117,1)]" />}
         </button>
       </div>
