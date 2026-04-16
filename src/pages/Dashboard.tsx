@@ -1,15 +1,96 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, LabelList } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, LabelList, ReferenceLine, Label } from 'recharts';
 import { TrendingUp, Users, Target, Activity, MoreHorizontal, ArrowUpRight, ArrowDownRight, Calendar, DollarSign, Wallet, ShoppingCart } from 'lucide-react';
 import { useApp } from '../store';
 import { LEAD_STATUS_MAP, PAID_PURCHASE_STATUSES } from '../constants';
+import { supabase } from '../lib/supabase';
 
 const COLORS = ['#60A5FA', '#FBBF24', '#A78BFA', '#34D399', '#F87171'];
 
 export const Dashboard: React.FC = () => {
   const { leads, globalStats, trafficInvestments, fetchGlobalStats, fetchTrafficInvestments, filters, setFilters } = useApp();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'vendas' | 'cac-ltv'>('vendas');
+  const [monthlyMetrics, setMonthlyMetrics] = useState<any[]>([]);
+
+  const avgCac = monthlyMetrics.length ? monthlyMetrics.reduce((acc, m) => acc + m.cac, 0) / monthlyMetrics.length : 0;
+  const avgTicket = monthlyMetrics.length ? monthlyMetrics.reduce((acc, m) => acc + m.ticketMedio, 0) / monthlyMetrics.length : 0;
+  const avgLtv = monthlyMetrics.length ? monthlyMetrics.reduce((acc, m) => acc + m.ltv, 0) / monthlyMetrics.length : 0;
+  useEffect(() => {
+    async function fetch12Months() {
+      const now = new Date();
+      // Início do 11º mês atrás (para compor 12 com o mês atual)
+      const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      const startStr = start.toISOString().split('T')[0];
+      
+      const [adsRes, leadsRes, purchasesRes] = await Promise.all([
+        supabase.from('meta_ads').select('date, amount_spent').gte('date', startStr).limit(100000),
+        supabase.from('leads').select('created_at').eq('origin', 'Tráfego pago').gte('created_at', startStr).limit(100000),
+        supabase.from('lead_purchases').select('lead_id, value, date, status').in('status', PAID_PURCHASE_STATUSES).limit(100000)
+      ]);
+
+      const ads = adsRes.data || [];
+      const paidLeads = leadsRes.data || [];
+      const purchases = purchasesRes.data || [];
+
+      const metrics = [];
+      const fixTz = (s: any) => typeof s === 'string' ? s.replace(/Z$|\+00:00$|\+00$/, '') : s;
+
+      for (let i = 11; i >= 0; i--) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = targetDate.getFullYear();
+        const m = targetDate.getMonth();
+        
+        // Month boundaries
+        const mStart = new Date(y, m, 1);
+        const mEnd = new Date(y, m + 1, 0, 23, 59, 59);
+
+        // Name
+        const monthLabel = mStart.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+        const label = `${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}/${String(y).slice(-2)}`;
+
+        // CAC
+        const spentInMonth = ads
+          .filter(a => new Date(fixTz(a.date)) >= mStart && new Date(fixTz(a.date)) <= mEnd)
+          .reduce((sum, a) => sum + Number(a.amount_spent), 0);
+          
+        const leadsInMonth = paidLeads
+          .filter(l => new Date(fixTz(l.created_at)) >= mStart && new Date(fixTz(l.created_at)) <= mEnd)
+          .length;
+          
+        const cac = leadsInMonth > 0 ? spentInMonth / leadsInMonth : 0;
+
+        // Ticket Médio
+        const monthPurchases = purchases
+          .filter(p => new Date(fixTz(p.date)) >= mStart && new Date(fixTz(p.date)) <= mEnd);
+          
+        const revInMonth = monthPurchases.reduce((sum, p) => sum + Number(p.value), 0);
+        const uniqueCustomersInMonth = new Set(monthPurchases.map(p => p.lead_id)).size;
+        
+        const ticketMedio = uniqueCustomersInMonth > 0 ? revInMonth / uniqueCustomersInMonth : 0;
+
+        // LTV Acumulado
+        const purchasesTillMonth = purchases
+          .filter(p => new Date(fixTz(p.date)) <= mEnd);
+          
+        const totalRevTillMonth = purchasesTillMonth.reduce((sum, p) => sum + Number(p.value), 0);
+        const totalPurchasesTillMonth = purchasesTillMonth.length;
+        const uniqueCustomersTillMonth = new Set(purchasesTillMonth.map(p => p.lead_id)).size;
+        
+        const arpuTillMonth = uniqueCustomersTillMonth > 0 ? totalRevTillMonth / uniqueCustomersTillMonth : 0;
+        const mediaComprasTillMonth = uniqueCustomersTillMonth > 0 ? totalPurchasesTillMonth / uniqueCustomersTillMonth : 0;
+        const ltv = arpuTillMonth * mediaComprasTillMonth;
+
+        metrics.push({ month: label, cac, ticketMedio, ltv });
+      }
+      setMonthlyMetrics(metrics);
+    }
+    
+    if (activeTab === 'cac-ltv' && monthlyMetrics.length === 0) {
+      fetch12Months();
+    }
+  }, [activeTab]);
 
   // Usa refs para estabilizar as funções de fetch e evitar re-fetches ao trocar de janela
   const fetchGlobalStatsRef = useRef(fetchGlobalStats);
@@ -104,7 +185,7 @@ export const Dashboard: React.FC = () => {
     { label: 'ROAS', value: roas, icon: Target, color: 'text-yellow-400', diff: getDiffDisplay(roasVal, prevRoasVal) },
     { label: 'Compras', value: globalStats.totalSalesCount, icon: ShoppingCart, color: 'text-rose-400', diff: getDiffDisplay(globalStats.totalSalesCount, globalStats.prev.totalSalesCount) },
     { label: 'LTV', value: ltvVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: Wallet, color: 'text-cyan-400' },
-    { label: 'ARPU', value: arpu, icon: Users, color: 'text-indigo-400' },
+    { label: 'Ticket médio', value: arpu, icon: Users, color: 'text-indigo-400' },
   ];
 
   const periods = [
@@ -199,7 +280,25 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="flex border-b border-fortis-surface mt-4 mb-4 gap-4">
+        <button
+          className={`pb-3 px-2 font-bold text-sm transition-all relative ${activeTab === 'vendas' ? 'text-white' : 'text-fortis-mid hover:text-white'}`}
+          onClick={() => setActiveTab('vendas')}
+        >
+          Vendas
+          {activeTab === 'vendas' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-fortis-brand shadow-[0_0_10px_rgba(88,133,117,1)]" />}
+        </button>
+        <button
+          className={`pb-3 px-2 font-bold text-sm transition-all relative ${activeTab === 'cac-ltv' ? 'text-white' : 'text-fortis-mid hover:text-white'}`}
+          onClick={() => setActiveTab('cac-ltv')}
+        >
+          CAC x LTV
+          {activeTab === 'cac-ltv' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-fortis-brand shadow-[0_0_10px_rgba(88,133,117,1)]" />}
+        </button>
+      </div>
+
+      {activeTab === 'vendas' && (
+      <div className="grid grid-cols-1 gap-8 animate-in fade-in duration-300">
         <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-bold flex items-center gap-2">
@@ -351,6 +450,74 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
+
+      {activeTab === 'cac-ltv' && (
+      <div className="grid grid-cols-1 gap-8 animate-in fade-in duration-300">
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
+            <h3 className="font-bold flex items-center gap-2 mb-8">
+              CAC
+              <span className="text-[10px] bg-fortis-surface px-2 py-1 rounded text-fortis-mid tracking-widest uppercase">Últimos 12 Meses</span>
+            </h3>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyMetrics} margin={{ right: 100 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} tickFormatter={(value) => `R$ ${value.toFixed(0)}`} width={60} />
+                  <Tooltip cursor={{ fill: 'rgba(88, 133, 117, 0.1)' }} contentStyle={{ backgroundColor: '#141F28', borderColor: '#2B373E', borderRadius: '12px' }} formatter={(v: number) => [v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 'CAC']} />
+                  <ReferenceLine y={avgCac} stroke="#575756" strokeDasharray="3 3">
+                    <Label value={`Média: R$ ${avgCac.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} position="right" fill="#F3F4F6" fontSize={11} offset={8} />
+                  </ReferenceLine>
+                  <Bar dataKey="cac" fill="#A78BFA" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
+            <h3 className="font-bold flex items-center gap-2 mb-8">
+              Ticket Médio
+              <span className="text-[10px] bg-fortis-surface px-2 py-1 rounded text-fortis-mid tracking-widest uppercase">Últimos 12 Meses</span>
+            </h3>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyMetrics} margin={{ right: 100 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} tickFormatter={(value) => `R$ ${value.toFixed(0)}`} width={60} />
+                  <Tooltip cursor={{ fill: 'rgba(88, 133, 117, 0.1)' }} contentStyle={{ backgroundColor: '#141F28', borderColor: '#2B373E', borderRadius: '12px' }} formatter={(v: number) => [v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 'Ticket Médio']} />
+                  <ReferenceLine y={avgTicket} stroke="#575756" strokeDasharray="3 3">
+                    <Label value={`Média: R$ ${avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} position="right" fill="#F3F4F6" fontSize={11} offset={8} />
+                  </ReferenceLine>
+                  <Bar dataKey="ticketMedio" fill="#34D399" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
+            <h3 className="font-bold flex items-center gap-2 mb-8">
+              LTV Acumulado
+              <span className="text-[10px] bg-fortis-surface px-2 py-1 rounded text-fortis-mid tracking-widest uppercase">Últimos 12 Meses</span>
+            </h3>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyMetrics} margin={{ right: 100 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} tickFormatter={(value) => `R$ ${value.toFixed(0)}`} width={60} />
+                  <Tooltip cursor={{ fill: 'rgba(88, 133, 117, 0.1)' }} contentStyle={{ backgroundColor: '#141F28', borderColor: '#2B373E', borderRadius: '12px' }} formatter={(v: number) => [v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 'LTV Acumulado']} />
+                  <ReferenceLine y={avgLtv} stroke="#575756" strokeDasharray="3 3">
+                    <Label value={`Média: R$ ${avgLtv.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} position="right" fill="#F3F4F6" fontSize={11} offset={8} />
+                  </ReferenceLine>
+                  <Bar dataKey="ltv" fill="#60A5FA" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+      </div>
+      )}
     </div>
   );
 };

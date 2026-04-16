@@ -526,7 +526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const prevTotalPurchasesCount = prevPurchasesPeriodResult.length || 0;
 
     // === GLOBAIS / ALL-TIME ===
-    const allTimePurchasesForStats = allPurchasesRes.data || [];
+    const allTimePurchasesForStats = (allPurchasesRes.data || []).filter(p => PAID_PURCHASE_STATUSES.includes(p.status || 'Pago'));
     const allTimeRevenue = allTimePurchasesForStats.reduce((acc, p) => acc + Number(p.value), 0) || 0;
     const allTimeDistinctCustomers = new Set(allTimePurchasesForStats.map(p => p.lead_id)).size;
     const allTimePurchasesCount = allTimePurchasesForStats.length;
