@@ -110,6 +110,17 @@ export const FlowDetails: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<CadenceTask | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [taskInstructions, setTaskInstructions] = useState('');
+    const [commercialActions, setCommercialActions] = useState<{id: string; name: string; start_date: string; end_date: string}[]>([]);
+    const [actionSearch, setActionSearch] = useState('');
+    const [showActionSuggestions, setShowActionSuggestions] = useState(false);
+
+    useEffect(() => {
+        const fetchCommercialActions = async () => {
+            const { data } = await supabase.from('commercial_actions').select('id, name, start_date, end_date').order('name');
+            if (data) setCommercialActions(data);
+        };
+        fetchCommercialActions();
+    }, []);
 
     // Advance-stage modal
     const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
@@ -161,7 +172,7 @@ export const FlowDetails: React.FC = () => {
             .select(`
                 *,
                 lead:leads(
-                    id, name, email, phone, status, after_sales_status, responsible_id, tags, uf, cpf, address, address_number, district, city
+                    id, name, email, phone, status, after_sales_status, responsible_id, tags, uf, cpf, address, address_number, district, city, commercial_action_ids
                 )
             `)
             .eq('flow_id', id)
@@ -189,7 +200,8 @@ export const FlowDetails: React.FC = () => {
                     address: t.lead.address,
                     addressNumber: t.lead.address_number,
                     district: t.lead.district,
-                    city: t.lead.city
+                    city: t.lead.city,
+                    commercialActionIds: t.lead.commercial_action_ids || []
                 } as Lead : undefined
             }));
             setTasks(mappedTasks);
@@ -1104,6 +1116,82 @@ export const FlowDetails: React.FC = () => {
                                         <div>
                                             <p className="text-xs text-fortis-mid">Data de Conclusão / Abordagem</p>
                                             <p className="font-bold text-white">{selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</p>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <p className="text-xs text-fortis-mid mb-1">Ações Comerciais Vinculadas</p>
+                                            <div className="relative">
+                                                <div className="bg-fortis-panel border border-fortis-surface rounded-lg p-2 min-h-[42px] focus-within:border-fortis-brand transition-colors">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedTask.lead.commercialActionIds?.map((actionId: string) => {
+                                                            const actionConfig = commercialActions.find(a => a.id === actionId);
+                                                            if (!actionConfig) return null;
+                                                            return (
+                                                                <span
+                                                                    key={actionId}
+                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                                                                >
+                                                                    {actionConfig.name}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async () => {
+                                                                            const newActions = (selectedTask.lead!.commercialActionIds || []).filter(id => id !== actionId);
+                                                                            const updatedLead = { ...selectedTask.lead!, commercialActionIds: newActions };
+                                                                            setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                            setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                            await updateLead(selectedTask.lead!.id, { commercialActionIds: newActions });
+                                                                        }}
+                                                                        className="hover:bg-cyan-500/30 rounded-full p-0.5 ml-1 transition-colors"
+                                                                    >
+                                                                        <X size={10} />
+                                                                    </button>
+                                                                </span>
+                                                            );
+                                                        })}
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Pesquise ou adicione..."
+                                                            className="bg-transparent border-none outline-none text-xs text-white placeholder:text-fortis-mid flex-1 min-w-[100px]"
+                                                            value={actionSearch}
+                                                            onChange={(e) => {
+                                                                setActionSearch(e.target.value);
+                                                                setShowActionSuggestions(true);
+                                                            }}
+                                                            onFocus={() => setShowActionSuggestions(true)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {showActionSuggestions && commercialActions.filter(a => a.name.toLowerCase().includes(actionSearch.toLowerCase()) && !selectedTask.lead!.commercialActionIds?.includes(a.id)).length > 0 && (
+                                                    <div className="absolute z-[60] left-0 right-0 mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+                                                        {commercialActions.filter(a => a.name.toLowerCase().includes(actionSearch.toLowerCase()) && !selectedTask.lead!.commercialActionIds?.includes(a.id)).map(action => (
+                                                            <button
+                                                                key={action.id}
+                                                                type="button"
+                                                                className="w-full flex flex-col justify-center px-4 py-2.5 text-left text-xs hover:bg-fortis-surface transition-colors border-b border-fortis-surface/50 last:border-0"
+                                                                onClick={async () => {
+                                                                    const newActions = [...(selectedTask.lead!.commercialActionIds || []), action.id];
+                                                                    const updatedLead = { ...selectedTask.lead!, commercialActionIds: newActions };
+                                                                    setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                    setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                    await updateLead(selectedTask.lead!.id, { commercialActionIds: newActions });
+                                                                    setActionSearch('');
+                                                                    setShowActionSuggestions(false);
+                                                                }}
+                                                            >
+                                                                <span className="font-bold text-white">{action.name}</span>
+                                                                <span className="text-fortis-mid mt-0.5 text-[10px]">
+                                                                    {new Date(action.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(action.end_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

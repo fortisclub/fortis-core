@@ -89,6 +89,7 @@ export interface Lead {
   lastPurchaseAt?: string;
   purchaseHistory?: { id: string; date: string; value: number; status: string }[];
   history: LeadHistory[];
+  commercialActionIds?: string[];
 }
 
 export interface ActivityLog {

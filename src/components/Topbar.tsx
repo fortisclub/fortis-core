@@ -17,6 +17,9 @@ export const Topbar: React.FC = () => {
     if (location.pathname === '/fluxos') {
       return { label: 'Novo Fluxo', action: () => openModal('CADENCE_FLOW') };
     }
+    if (location.pathname === '/acoes-comerciais') {
+      return { label: 'Nova Ação', action: () => openModal('COMMERCIAL_ACTION') };
+    }
     return null;
   };
 

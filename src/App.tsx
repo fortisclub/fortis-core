@@ -18,6 +18,7 @@ import { LeadModal } from './components/LeadModal';
 import { BellRing, X, Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
+import { CommercialActions } from './pages/CommercialActions';
 
 const NotificationCenter = () => {
   const { notifications, clearNotification } = useApp();
@@ -111,6 +112,7 @@ const App: React.FC = () => {
             <Route path="/fluxos" element={<RequireAuth><AppLayout><Flows /></AppLayout></RequireAuth>} />
             <Route path="/fluxos/:id" element={<RequireAuth><AppLayout><FlowDetails /></AppLayout></RequireAuth>} />
             <Route path="/usuarios" element={<RequireAuth><AppLayout><UsersPage /></AppLayout></RequireAuth>} />
+            <Route path="/acoes-comerciais" element={<RequireAuth><AppLayout><CommercialActions /></AppLayout></RequireAuth>} />
             <Route path="/configuracoes" element={<RequireAuth><AppLayout><Settings /></AppLayout></RequireAuth>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />

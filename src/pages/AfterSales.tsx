@@ -527,12 +527,12 @@ export const AfterSales: React.FC = () => {
                           {client.lastContactAt ? new Date(client.lastContactAt).toLocaleDateString('pt-BR') : '-'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 overflow-hidden">
                         <div className="flex flex-wrap gap-1">
                           {(client.tags || []).map(tagLabel => {
                             const tagConfig = tags.find(t => t.label === tagLabel);
                             return (
-                              <span key={tagLabel} className="px-1.5 py-0.5 rounded text-[9px] font-black text-white shadow-sm uppercase" style={{ backgroundColor: tagConfig?.color || '#575756' }}>
+                              <span key={tagLabel} title={tagLabel} className="px-1.5 py-0.5 rounded text-[9px] font-black text-white shadow-sm uppercase max-w-full truncate inline-block align-bottom" style={{ backgroundColor: tagConfig?.color || '#575756' }}>
                                 {tagLabel}
                               </span>
                             );

@@ -22,10 +22,10 @@ interface AppContextType {
   channels: string[];
   origins: string[];
   notifications: AppNotification[];
-  activeModal: 'LEAD' | 'USER' | 'CADENCE_FLOW' | null;
+  activeModal: 'LEAD' | 'USER' | 'CADENCE_FLOW' | 'COMMERCIAL_ACTION' | null;
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
-  openModal: (modal: 'LEAD' | 'USER' | 'CADENCE_FLOW') => void;
+  openModal: (modal: 'LEAD' | 'USER' | 'CADENCE_FLOW' | 'COMMERCIAL_ACTION') => void;
   closeModal: () => void;
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'lastContactAt' | 'history'>) => Promise<void>;
   updateLead: (id: string, updates: Partial<Lead>) => Promise<void>;
@@ -125,7 +125,8 @@ const FIELD_LABELS: Record<string, string> = {
   address: 'Endereço',
   addressNumber: 'Número',
   district: 'Bairro',
-  city: 'Cidade'
+  city: 'Cidade',
+  commercialActionIds: 'Ações Comerciais'
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -133,7 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [activeModal, setActiveModal] = useState<'LEAD' | 'USER' | 'CADENCE_FLOW' | null>(null);
+  const [activeModal, setActiveModal] = useState<'LEAD' | 'USER' | 'CADENCE_FLOW' | 'COMMERCIAL_ACTION' | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [tags, setTags] = useState<ConfigTag[]>([]);
@@ -877,7 +878,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lastContactAt: l.last_contact_at,
         lastPurchaseAt: purchaseHistory.length > 0 ? purchaseHistory[0].date : fixTz(l.last_purchase_at),
         purchaseHistory,
-        history: []
+        history: [],
+        commercialActionIds: Array.isArray(l.commercial_action_ids) ? l.commercial_action_ids : []
       };
     });
 
@@ -1031,6 +1033,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         address_number: newLeadData.addressNumber,
         district: newLeadData.district,
         city: newLeadData.city,
+        commercial_action_ids: newLeadData.commercialActionIds || [],
         last_purchase_at: null
       }])
       .select()
@@ -1086,6 +1089,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (updates.addressNumber !== undefined) dataUpdates.address_number = updates.addressNumber;
     if (updates.district !== undefined) dataUpdates.district = updates.district;
     if (updates.city !== undefined) dataUpdates.city = updates.city;
+    if (updates.commercialActionIds !== undefined) dataUpdates.commercial_action_ids = updates.commercialActionIds;
     if (updates.afterSalesStatus === null) dataUpdates.after_sales_status = null;
 
     const { error } = await supabase.from('leads').update(dataUpdates).eq('id', id);

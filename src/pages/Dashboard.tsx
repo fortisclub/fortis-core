@@ -23,7 +23,7 @@ export const Dashboard: React.FC = () => {
       // Início do 11º mês atrás (para compor 12 com o mês atual)
       const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
       const startStr = start.toISOString().split('T')[0];
-      
+
       const [adsRes, leadsRes, purchasesRes] = await Promise.all([
         supabase.from('meta_ads').select('date, amount_spent').gte('date', startStr).limit(100000),
         supabase.from('leads').select('created_at').eq('origin', 'Tráfego pago').gte('created_at', startStr).limit(100000),
@@ -41,7 +41,7 @@ export const Dashboard: React.FC = () => {
         const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const y = targetDate.getFullYear();
         const m = targetDate.getMonth();
-        
+
         // Month boundaries
         const mStart = new Date(y, m, 1);
         const mEnd = new Date(y, m + 1, 0, 23, 59, 59);
@@ -54,30 +54,30 @@ export const Dashboard: React.FC = () => {
         const spentInMonth = ads
           .filter(a => new Date(fixTz(a.date)) >= mStart && new Date(fixTz(a.date)) <= mEnd)
           .reduce((sum, a) => sum + Number(a.amount_spent), 0);
-          
+
         const leadsInMonth = paidLeads
           .filter(l => new Date(fixTz(l.created_at)) >= mStart && new Date(fixTz(l.created_at)) <= mEnd)
           .length;
-          
+
         const cac = leadsInMonth > 0 ? spentInMonth / leadsInMonth : 0;
 
         // Ticket Médio
         const monthPurchases = purchases
           .filter(p => new Date(fixTz(p.date)) >= mStart && new Date(fixTz(p.date)) <= mEnd);
-          
+
         const revInMonth = monthPurchases.reduce((sum, p) => sum + Number(p.value), 0);
         const uniqueCustomersInMonth = new Set(monthPurchases.map(p => p.lead_id)).size;
-        
+
         const ticketMedio = uniqueCustomersInMonth > 0 ? revInMonth / uniqueCustomersInMonth : 0;
 
         // LTV Acumulado
         const purchasesTillMonth = purchases
           .filter(p => new Date(fixTz(p.date)) <= mEnd);
-          
+
         const totalRevTillMonth = purchasesTillMonth.reduce((sum, p) => sum + Number(p.value), 0);
         const totalPurchasesTillMonth = purchasesTillMonth.length;
         const uniqueCustomersTillMonth = new Set(purchasesTillMonth.map(p => p.lead_id)).size;
-        
+
         const arpuTillMonth = uniqueCustomersTillMonth > 0 ? totalRevTillMonth / uniqueCustomersTillMonth : 0;
         const mediaComprasTillMonth = uniqueCustomersTillMonth > 0 ? totalPurchasesTillMonth / uniqueCustomersTillMonth : 0;
         const ltv = arpuTillMonth * mediaComprasTillMonth;
@@ -86,7 +86,7 @@ export const Dashboard: React.FC = () => {
       }
       setMonthlyMetrics(metrics);
     }
-    
+
     if (activeTab === 'cac-ltv' && monthlyMetrics.length === 0) {
       fetch12Months();
     }
@@ -298,162 +298,162 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {activeTab === 'vendas' && (
-      <div className="grid grid-cols-1 gap-8 animate-in fade-in duration-300">
-        <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="font-bold flex items-center gap-2">
-              Vendas por Período
-            </h3>
-            <div className="flex items-center gap-4">
-               <div className="flex items-center gap-2">
-                 <div className="w-2 h-2 rounded-full bg-[#588575]" />
-                 <span className="text-[10px] font-black text-fortis-mid uppercase tracking-widest">Vendas</span>
-               </div>
-               <Calendar size={18} className="text-blue-400" />
-            </div>
-          </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={globalStats.salesDaily} margin={{ top: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
-                <XAxis dataKey="displayDate" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(88, 133, 117, 0.1)' }}
-                  contentStyle={{ backgroundColor: '#141F28', border: '1px solid #2B373E', borderRadius: '12px' }}
-                  itemStyle={{ color: '#588575', fontWeight: 'bold' }}
-                  labelStyle={{ color: '#fff', marginBottom: '4px', fontSize: '12px' }}
-                />
-                <Bar dataKey="count" fill="#588575" radius={[6, 6, 0, 0]} animationDuration={2000}>
-                  <LabelList
-                    dataKey="count"
-                    position="top"
-                    fill="#a1a1aa"
-                    fontSize={11}
-                    fontWeight="bold"
-                    formatter={(value: number) => value || ''}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Compras por UF */}
-          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
-            <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Compras por UF</h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={salesUfData}
-                    cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
-                    animationDuration={1500}
-                  >
-                    {salesUfData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
-                    itemStyle={{ color: '#fff' }}
-                    formatter={(value: number) => [`${value} (${((value / (totalSalesUf || 1)) * 100).toFixed(1)}%)`, 'Vendas']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-              {salesUfData.map((d, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-fortis-mid">{d.name}</span>
-                  </div>
-                  <span className="font-bold text-white">{d.value}</span>
+        <div className="grid grid-cols-1 gap-8 animate-in fade-in duration-300">
+          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="font-bold flex items-center gap-2">
+                Vendas por Período
+              </h3>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#588575]" />
+                  <span className="text-[10px] font-black text-fortis-mid uppercase tracking-widest">Vendas</span>
                 </div>
-              ))}
+                <Calendar size={18} className="text-blue-400" />
+              </div>
+            </div>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={globalStats.salesDaily} margin={{ top: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
+                  <XAxis dataKey="displayDate" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(88, 133, 117, 0.1)' }}
+                    contentStyle={{ backgroundColor: '#141F28', border: '1px solid #2B373E', borderRadius: '12px' }}
+                    itemStyle={{ color: '#588575', fontWeight: 'bold' }}
+                    labelStyle={{ color: '#fff', marginBottom: '4px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="count" fill="#588575" radius={[6, 6, 0, 0]} animationDuration={2000}>
+                    <LabelList
+                      dataKey="count"
+                      position="top"
+                      fill="#a1a1aa"
+                      fontSize={11}
+                      fontWeight="bold"
+                      formatter={(value: number) => value || ''}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Compras por Origem */}
-          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
-            <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Compras por Canal</h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={salesChannelData}
-                    cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
-                    animationDuration={1500}
-                  >
-                    {salesChannelData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
-                    itemStyle={{ color: '#fff' }}
-                    formatter={(value: number) => [`${value} (${((value / (totalSalesChannel || 1)) * 100).toFixed(1)}%)`, 'Vendas']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-              {salesChannelData.map((d, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-fortis-mid">{d.name}</span>
-                  </div>
-                  <span className="font-bold text-white">{d.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Leads por Status */}
-          <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
-            <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Leads por Status</h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={leadsStatusData}
-                    cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
-                    animationDuration={1500}
-                  >
-                    {leadsStatusData.map((d, index) => {
-                       const statusColor = LEAD_STATUS_MAP[d.name as any]?.color || COLORS[index % COLORS.length];
-                       return <Cell key={index} fill={statusColor} stroke="none" />;
-                    })}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
-                    itemStyle={{ color: '#fff' }}
-                    formatter={(value: number) => [`${value} (${((value / (totalLeadsStatus || 1)) * 100).toFixed(1)}%)`, 'Leads']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-              {leadsStatusData.map((d, i) => {
-                const statusLabel = LEAD_STATUS_MAP[d.name as any]?.label || d.name;
-                const statusColor = LEAD_STATUS_MAP[d.name as any]?.color || COLORS[i % COLORS.length];
-                return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Compras por UF */}
+            <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+              <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Compras por UF</h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={salesUfData}
+                      cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
+                      animationDuration={1500}
+                    >
+                      {salesUfData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value: number) => [`${value} (${((value / (totalSalesUf || 1)) * 100).toFixed(1)}%)`, 'Vendas']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                {salesUfData.map((d, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 font-semibold">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
-                      <span className="text-fortis-mid">{statusLabel}</span>
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-fortis-mid">{d.name}</span>
                     </div>
                     <span className="font-bold text-white">{d.value}</span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+
+            {/* Compras por Origem */}
+            <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+              <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Compras por Canal</h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={salesChannelData}
+                      cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
+                      animationDuration={1500}
+                    >
+                      {salesChannelData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" />)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value: number) => [`${value} (${((value / (totalSalesChannel || 1)) * 100).toFixed(1)}%)`, 'Vendas']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                {salesChannelData.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-fortis-mid">{d.name}</span>
+                    </div>
+                    <span className="font-bold text-white">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Leads por Status */}
+            <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+              <h3 className="font-bold mb-8 text-sm uppercase tracking-widest text-fortis-mid">Leads por Status</h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={leadsStatusData}
+                      cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value"
+                      animationDuration={1500}
+                    >
+                      {leadsStatusData.map((d, index) => {
+                        const statusColor = LEAD_STATUS_MAP[d.name as any]?.color || COLORS[index % COLORS.length];
+                        return <Cell key={index} fill={statusColor} stroke="none" />;
+                      })}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#141F28', border: 'none', borderRadius: '12px', color: '#fff' }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value: number) => [`${value} (${((value / (totalLeadsStatus || 1)) * 100).toFixed(1)}%)`, 'Leads']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-3 mt-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                {leadsStatusData.map((d, i) => {
+                  const statusLabel = LEAD_STATUS_MAP[d.name as any]?.label || d.name;
+                  const statusColor = LEAD_STATUS_MAP[d.name as any]?.color || COLORS[i % COLORS.length];
+                  return (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
+                        <span className="text-fortis-mid">{statusLabel}</span>
+                      </div>
+                      <span className="font-bold text-white">{d.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {activeTab === 'cac-ltv' && (
-      <div className="grid grid-cols-1 gap-8 animate-in fade-in duration-300">
+        <div className="grid grid-cols-1 gap-8 animate-in fade-in duration-300">
           <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
             <h3 className="font-bold flex items-center gap-2 mb-8">
               CAC
@@ -516,7 +516,7 @@ export const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
-      </div>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCheck, Settings, Package, BookUser, ShoppingBag, ChevronLeft, LogOut, Workflow, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, UserCheck, Settings, Package, BookUser, ShoppingBag, ChevronLeft, LogOut, Workflow, Wallet, Megaphone } from 'lucide-react';
 import { useApp } from '../store';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,6 +9,7 @@ const navItems = [
   { path: '/leads', label: 'Leads', icon: Users, color: 'text-amber-400' },
   { path: '/pos-venda', label: 'Pós-venda', icon: Package, color: 'text-purple-400' },
   { path: '/fluxos', label: 'Fluxos de Cadência', icon: Workflow, color: 'text-cyan-400' },
+  { path: '/acoes-comerciais', label: 'Ações Comerciais', icon: Megaphone, color: 'text-orange-400' },
   { path: '/clientes', label: 'Clientes', icon: BookUser, color: 'text-emerald-400' },
   { path: '/vendas', label: 'Vendas', icon: ShoppingBag, color: 'text-rose-400' },
   { path: '/financeiro', label: 'Financeiro', icon: Wallet, color: 'text-emerald-500' },
