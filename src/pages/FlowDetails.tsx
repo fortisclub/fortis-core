@@ -110,13 +110,13 @@ export const FlowDetails: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<CadenceTask | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [taskInstructions, setTaskInstructions] = useState('');
-    const [commercialActions, setCommercialActions] = useState<{id: string; name: string; start_date: string; end_date: string}[]>([]);
+    const [commercialActions, setCommercialActions] = useState<{id: string; name: string; start_date: string; end_date: string, color?: string}[]>([]);
     const [actionSearch, setActionSearch] = useState('');
     const [showActionSuggestions, setShowActionSuggestions] = useState(false);
 
     useEffect(() => {
         const fetchCommercialActions = async () => {
-            const { data } = await supabase.from('commercial_actions').select('id, name, start_date, end_date').order('name');
+            const { data } = await supabase.from('commercial_actions').select('id, name, start_date, end_date, color').order('name');
             if (data) setCommercialActions(data);
         };
         fetchCommercialActions();
@@ -1128,9 +1128,19 @@ export const FlowDetails: React.FC = () => {
                                                             return (
                                                                 <span
                                                                     key={actionId}
-                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm"
+                                                                    style={{ 
+                                                                        backgroundColor: actionConfig.color ? `${actionConfig.color}33` : 'rgba(6, 182, 212, 0.2)',
+                                                                        color: actionConfig.color || '#06b6d4',
+                                                                        border: `1px solid ${actionConfig.color ? `${actionConfig.color}4d` : 'rgba(6, 182, 212, 0.3)'}`
+                                                                    }}
                                                                 >
-                                                                    {actionConfig.name}
+                                                                    <span>
+                                                                        {actionConfig.name}
+                                                                        <span className="font-normal opacity-70 ml-1 text-[10px]" style={{ color: actionConfig.color || '#06b6d4' }}>
+                                                                            ({new Date(actionConfig.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(actionConfig.end_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })})
+                                                                        </span>
+                                                                    </span>
                                                                     <button
                                                                         type="button"
                                                                         onClick={async () => {

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useApp } from '../store';
-import { Bold, Italic, List, Save, Megaphone, Tag, Calendar, AlignLeft, Plus, Settings2, Trash2, X, Clock, Loader2 } from 'lucide-react';
+import { Bold, Italic, List, Save, Megaphone, Tag, Calendar, AlignLeft, Plus, Settings2, Trash2, X, Clock, Loader2, Palette } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const ACTION_OPTIONS = [
@@ -20,6 +20,19 @@ const ACTION_OPTIONS = [
   { value: 'preco_unico', label: 'PREÇO ÚNICO', color: 'bg-red-500/20 text-red-500' },
 ];
 
+const ACTION_COLORS = [
+  '#06b6d4', // Cyan
+  '#a855f7', // Purple
+  '#f59e0b', // Amber
+  '#10b981', // Emerald
+  '#f43f5e', // Rose
+  '#3b82f6', // Blue
+  '#ef4444', // Red
+  '#eab308', // Yellow
+  '#14b8a6', // Teal
+  '#8b5cf6', // Violet
+];
+
 interface CommercialAction {
   id: string;
   name: string;
@@ -27,6 +40,7 @@ interface CommercialAction {
   endDate: string;
   selectedAction: string;
   description: string;
+  color: string;
   createdAt: string;
 }
 
@@ -44,6 +58,7 @@ export const CommercialActions: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedAction, setSelectedAction] = useState(ACTION_OPTIONS[0].value);
+  const [color, setColor] = useState('#06b6d4');
   const editorRef = useRef<HTMLDivElement>(null);
 
   const formatText = (command: string) => {
@@ -68,6 +83,7 @@ export const CommercialActions: React.FC = () => {
           endDate: item.end_date,
           selectedAction: item.selected_action,
           description: item.description || '',
+          color: item.color || '#06b6d4',
           createdAt: item.created_at
         })));
       }
@@ -96,6 +112,7 @@ export const CommercialActions: React.FC = () => {
       setStartDate(action.startDate);
       setEndDate(action.endDate);
       setSelectedAction(action.selectedAction);
+      setColor(action.color || '#06b6d4');
       setTimeout(() => {
         if (editorRef.current) {
           editorRef.current.innerHTML = action.description;
@@ -107,6 +124,7 @@ export const CommercialActions: React.FC = () => {
       setStartDate('');
       setEndDate('');
       setSelectedAction(ACTION_OPTIONS[0].value);
+      setColor('#06b6d4');
       setTimeout(() => {
         if (editorRef.current) {
           editorRef.current.innerHTML = '';
@@ -151,14 +169,15 @@ export const CommercialActions: React.FC = () => {
             start_date: startDate,
             end_date: endDate,
             selected_action: selectedAction,
-            description
+            description,
+            color
           })
           .eq('id', editingId);
 
         if (error) throw error;
 
         setActions(prev => prev.map(a => a.id === editingId ? {
-          ...a, name, startDate, endDate, selectedAction, description
+          ...a, name, startDate, endDate, selectedAction, description, color
         } : a));
         addNotification('Sucesso', 'Ação comercial atualizada com sucesso!', 'SUCCESS');
       } else {
@@ -169,7 +188,8 @@ export const CommercialActions: React.FC = () => {
             start_date: startDate,
             end_date: endDate,
             selected_action: selectedAction,
-            description
+            description,
+            color
           }])
           .select()
           .single();
@@ -184,6 +204,7 @@ export const CommercialActions: React.FC = () => {
             endDate: data.end_date,
             selectedAction: data.selected_action,
             description: data.description || '',
+            color: data.color || '#06b6d4',
             createdAt: data.created_at
           };
           setActions(prev => [newAction, ...prev]);
@@ -387,6 +408,40 @@ export const CommercialActions: React.FC = () => {
                         ) : null;
                     })()}
                     <svg className="w-4 h-4 text-fortis-mid" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-fortis-mid uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <Palette size={14} /> Cor da tag
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-2 flex-wrap">
+                    {ACTION_COLORS.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setColor(c)}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <div className="w-px h-8 bg-fortis-surface mx-2"></div>
+                  <div className="relative flex items-center" title="Cor Personalizada">
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer opacity-0 absolute inset-0 z-10"
+                    />
+                    <div 
+                      className="w-8 h-8 rounded-full border-2 border-dashed border-fortis-mid flex items-center justify-center cursor-pointer hover:border-white transition-colors"
+                      style={{ backgroundColor: color }}
+                    >
+                        {!ACTION_COLORS.includes(color) && <Plus size={12} className="text-white drop-shadow-md" />}
+                    </div>
                   </div>
                 </div>
               </div>
