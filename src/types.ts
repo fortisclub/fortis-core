@@ -139,3 +139,12 @@ export interface AppNotification {
   timestamp: string;
   read: boolean;
 }
+
+export interface SalesScript {
+  id: string;
+  title: string;
+  content: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}

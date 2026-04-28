@@ -106,6 +106,8 @@ export const Finance: React.FC = () => {
 
     const [statementFilterType, setStatementFilterType] = useState<string>('TODOS');
     const [statementFilterCat, setStatementFilterCat] = useState<string>('TODAS');
+    const [projectionDays, setProjectionDays] = useState<number | 'CUSTOM'>(14);
+    const [customProjectionDays, setCustomProjectionDays] = useState<number>(45);
 
     useEffect(() => {
         fetchData();
@@ -468,14 +470,15 @@ export const Finance: React.FC = () => {
         return data;
     }, [accountsPayable]);
 
-    // Chart: Projeção 14 dias
-    const projection14DaysData = useMemo(() => {
+    // Chart: Projeção de dias flexível
+    const projectionDaysData = useMemo(() => {
+        const activeDays = projectionDays === 'CUSTOM' ? customProjectionDays : projectionDays;
         const data = [];
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(0, 0, 0, 0);
 
-        for (let i = 0; i < 14; i++) {
+        for (let i = 0; i < activeDays; i++) {
             const target = new Date(tomorrow);
             target.setDate(target.getDate() + i);
             
@@ -500,7 +503,7 @@ export const Finance: React.FC = () => {
             });
         }
         return data;
-    }, [cashFlows, accountsPayable]);
+    }, [cashFlows, accountsPayable, projectionDays, customProjectionDays]);
 
     const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -789,22 +792,52 @@ export const Finance: React.FC = () => {
                 </div>
             </div>
 
-            {/* Row 2.6: Projeção 14 dias */}
+            {/* Row 2.6: Projeção N dias */}
             <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8 relative overflow-hidden">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                     <h3 className="font-bold">
-                        Projeção dos próximos 14 dias:{' '}
-                        <span className={projection14DaysData.reduce((acc, curr) => acc + curr['Resultado Operacional'], 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}>
-                            {formatCurrency(projection14DaysData.reduce((acc, curr) => acc + curr['Resultado Operacional'], 0))}
+                        Projeção dos próximos {projectionDays === 'CUSTOM' ? customProjectionDays : projectionDays} dias:{' '}
+                        <span className={projectionDaysData.reduce((acc, curr) => acc + curr['Resultado Operacional'], 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                            {formatCurrency(projectionDaysData.reduce((acc, curr) => acc + curr['Resultado Operacional'], 0))}
                         </span>
                     </h3>
-                    <div className="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">
-                        Próximos 14 dias
+                    <div className="flex items-center gap-2">
+                        {projectionDays === 'CUSTOM' && (
+                            <div className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                                <span className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Dias:</span>
+                                <input 
+                                    type="number" 
+                                    min={1} 
+                                    max={365} 
+                                    value={customProjectionDays}
+                                    onChange={(e) => setCustomProjectionDays(Math.max(1, Math.min(365, Number(e.target.value))))}
+                                    className="w-16 bg-fortis-dark border border-fortis-surface text-white text-xs font-bold rounded-lg px-2 py-1 text-center outline-none focus:border-blue-500 transition-colors"
+                                />
+                            </div>
+                        )}
+                        <div className="relative">
+                            <select
+                                value={projectionDays}
+                                onChange={(e) => setProjectionDays(e.target.value === 'CUSTOM' ? 'CUSTOM' : Number(e.target.value))}
+                                className="bg-blue-500/10 text-blue-500 px-3 py-1 rounded-full uppercase font-bold tracking-wider text-[10px] outline-none cursor-pointer appearance-none pr-8 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                            >
+                                <option value={7} className="bg-fortis-panel">Próximos 7 dias</option>
+                                <option value={14} className="bg-fortis-panel">Próximos 14 dias (Padrão)</option>
+                                <option value={30} className="bg-fortis-panel">Próximos 30 dias</option>
+                                <option value={60} className="bg-fortis-panel">Próximos 60 dias</option>
+                                <option value={90} className="bg-fortis-panel">Próximos 90 dias</option>
+                                <option value={180} className="bg-fortis-panel">Próximos 180 dias</option>
+                                <option value="CUSTOM" className="bg-fortis-panel">Personalizado</option>
+                            </select>
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div className="h-80 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={projection14DaysData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                        <BarChart data={projectionDaysData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2B373E" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} dy={10} />
                             <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: '#575756' }} tickFormatter={(val) => `R$ ${val / 1000}k`} />

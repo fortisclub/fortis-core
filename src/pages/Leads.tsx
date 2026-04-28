@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { LayoutGrid, List, Filter, Search, MoreVertical, Calendar, User, MapPin, X, History, FileText, Phone, AtSign, Building2, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Tags as TagsIcon } from 'lucide-react';
+import { LayoutGrid, List, Filter, Search, MoreVertical, Calendar, User, MapPin, X, History, FileText, Phone, AtSign, Building2, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Trash2, Tags as TagsIcon } from 'lucide-react';
 import { useApp } from '../store';
 import { LEAD_STATUS_MAP, UFS } from '../constants';
 import { LeadStatus } from '../types';
@@ -10,7 +10,7 @@ import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
 
 export const Leads: React.FC = () => {
-  const { leads, users, tags, moveLead, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, fetchLeads } = useApp();
+  const { leads, users, tags, moveLead, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, fetchLeads, fetchLeadHistory, currentUser, editLeadNote, deleteLeadNote, updateLead } = useApp();
 
   const [localFilters, setLocalFilters] = useState({
     search: '',
@@ -28,6 +28,9 @@ export const Leads: React.FC = () => {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const selectedLead = useMemo(() => leads.find(l => l.id === selectedLeadId) || null, [leads, selectedLeadId]);
 
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
+
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'history'>('info');
   const [showFilters, setShowFilters] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -37,8 +40,6 @@ export const Leads: React.FC = () => {
 
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const { fetchLeadHistory, updateLead } = useApp();
-
   const [confirmingLeadMove, setConfirmingLeadMove] = useState<{ id: string; status: LeadStatus; email: string } | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState('');
 
@@ -128,6 +129,22 @@ export const Leads: React.FC = () => {
         setSelectedLeadId(null); // Fecha o detalhamento pois o lead saiu do pipeline
       }
     }
+  };
+
+  const handleSaveEditNote = async (noteId: string) => {
+    if (!editingNoteContent.trim() || !selectedLead) return;
+    await editLeadNote(noteId, editingNoteContent);
+    setEditingNoteId(null);
+    setEditingNoteContent('');
+    const updatedHistory = await fetchLeadHistory(selectedLead.id);
+    setHistory(updatedHistory);
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta observação?') || !selectedLead) return;
+    await deleteLeadNote(noteId);
+    const updatedHistory = await fetchLeadHistory(selectedLead.id);
+    setHistory(updatedHistory);
   };
 
   const columns: LeadStatus[] = ['NOVO', 'CONTATO', 'FOLLOW_UP', 'QUALIFICADO', 'AGUARDANDO_PAGAMENTO', 'PERDIDO'];
@@ -619,10 +636,11 @@ export const Leads: React.FC = () => {
                       <p className="text-fortis-mid text-sm font-black uppercase tracking-widest">Sem registros recentes</p>
                     </div>
                   ) : (
-                    <div className="relative pl-10 space-y-12">
+                    <div className="relative pl-10">
                       <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-fortis-surface z-0" />
 
-                      {history.map((item: any) => {
+                      <div className="space-y-12 pt-2">
+                        {history.map((item: any) => {
                         let statusColor = '#FFFFFF';
                         if (item.field === 'status' && item.newValue) {
                           const statusKey = Object.keys(LEAD_STATUS_MAP).find(
@@ -655,8 +673,59 @@ export const Leads: React.FC = () => {
                                       {item.newValue}
                                     </span>
                                   </div>
+                                ) : item.type === 'NOTE' ? (
+                                  editingNoteId === item.id ? (
+                                      <div className="flex flex-col gap-3">
+                                          <textarea
+                                              className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fortis-brand transition-all resize-none h-24"
+                                              value={editingNoteContent}
+                                              onChange={(e) => setEditingNoteContent(e.target.value)}
+                                          />
+                                          <div className="flex justify-end gap-2">
+                                              <button
+                                                  onClick={() => setEditingNoteId(null)}
+                                                  className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
+                                              >
+                                                  Cancelar
+                                              </button>
+                                              <button
+                                                  onClick={() => handleSaveEditNote(item.id)}
+                                                  className="px-4 py-2 bg-fortis-brand text-white text-xs font-bold rounded-lg hover:bg-fortis-brand/80 transition-colors"
+                                              >
+                                                  Salvar
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ) : (
+                                      <div className="flex justify-between items-start gap-4">
+                                          <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
+                                              {item.description}
+                                          </p>
+                                          {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
+                                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                  <button
+                                                      onClick={() => {
+                                                          setEditingNoteId(item.id);
+                                                          setEditingNoteContent(item.description);
+                                                      }}
+                                                      className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-fortis-brand transition-colors"
+                                                      title="Editar"
+                                                  >
+                                                      <Edit2 size={14} />
+                                                  </button>
+                                                  <button
+                                                      onClick={() => handleDeleteNote(item.id)}
+                                                      className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
+                                                      title="Excluir"
+                                                  >
+                                                      <Trash2 size={14} />
+                                                  </button>
+                                              </div>
+                                          )}
+                                      </div>
+                                  )
                                 ) : (
-                                  <p className="text-sm text-white font-bold leading-relaxed opacity-90">
+                                  <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
                                     {item.description}
                                   </p>
                                 )}
@@ -676,6 +745,7 @@ export const Leads: React.FC = () => {
                           </div>
                         );
                       })}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow, PendingApproval } from './types';
+import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow, PendingApproval, SalesScript } from './types';
 import { LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, CHANNELS as INITIAL_CHANNELS, ORIGINS as INITIAL_ORIGINS, PAID_PURCHASE_STATUSES, UNPAID_PURCHASE_STATUSES } from './constants';
 
 export interface CompanySettings {
@@ -36,6 +36,8 @@ interface AppContextType {
   addNotification: (title: string, message: string, type: AppNotification['type']) => void;
   clearNotification: (id: string) => void;
   addLeadNote: (leadId: string, note: string) => Promise<void>;
+  editLeadNote: (noteId: string, newNote: string) => Promise<void>;
+  deleteLeadNote: (noteId: string) => Promise<void>;
   addLeadSale: (leadId: string, value: number, note?: string) => Promise<void>;
   addTag: (label: string, color?: string) => Promise<void>;
   updateTag: (id: string, label: string, color: string) => Promise<void>;
@@ -105,6 +107,11 @@ interface AppContextType {
   fetchPendingApprovals: () => Promise<void>;
   approveUser: (approvalId: string, userId: string) => Promise<void>;
   rejectUser: (approvalId: string, userId: string) => Promise<void>;
+  salesScripts: SalesScript[];
+  fetchSalesScripts: () => Promise<void>;
+  addSalesScript: (script: { title: string; content: string }) => Promise<string | null>;
+  updateSalesScript: (id: string, updates: Partial<SalesScript>) => Promise<void>;
+  deleteSalesScript: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -144,6 +151,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [trafficInvestments, setTrafficInvestments] = useState<TrafficInvestment[]>([]);
   const [logs] = useState<ActivityLog[]>([]);
+  const [salesScripts, setSalesScripts] = useState<SalesScript[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({
     company_name: 'Fortis Clothing S.A.',
     contact_email: 'contato@fortis.clothing',
@@ -976,6 +984,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await fetchSettings();
       await fetchCadenceFlows();
       await fetchPendingApprovals();
+      await fetchSalesScripts();
 
       // Tags, Channels, Origins
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -1148,7 +1157,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    addNotification('Sucesso', 'Observação registrada com sucesso!', 'SUCCESS');
+    addNotification('Sucesso', 'Observação adicionada com sucesso!', 'SUCCESS');
+  };
+
+  const editLeadNote = async (noteId: string, newNote: string) => {
+    const { error } = await supabase.from('lead_history')
+      .update({ description: newNote })
+      .eq('id', noteId)
+      .eq('type', 'NOTE');
+
+    if (error) {
+      console.error('Erro ao editar nota:', error);
+      addNotification('Erro', 'Não foi possível editar a observação.', 'ERROR');
+      return;
+    }
+    addNotification('Sucesso', 'Observação atualizada com sucesso!', 'SUCCESS');
+  };
+
+  const deleteLeadNote = async (noteId: string) => {
+    const { error } = await supabase.from('lead_history')
+      .delete()
+      .eq('id', noteId)
+      .eq('type', 'NOTE');
+
+    if (error) {
+      console.error('Erro ao excluir nota:', error);
+      addNotification('Erro', 'Não foi possível excluir a observação.', 'ERROR');
+      return;
+    }
+    addNotification('Sucesso', 'Observação excluída com sucesso!', 'SUCCESS');
   };
 
   const addLeadSale = async (leadId: string, value: number, note?: string) => {
@@ -1266,17 +1303,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addNotification('Removido', 'Usuário excluído com sucesso.', 'INFO');
   };
 
+  const fetchSalesScripts = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('sales_scripts')
+      .select('*')
+      .order('updated_at', { ascending: false });
+    
+    if (!error && data) {
+      setSalesScripts(data.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        content: s.content,
+        userId: s.user_id,
+        createdAt: s.created_at,
+        updatedAt: s.updated_at
+      })));
+    }
+  }, []);
+
+  const addSalesScript = async (script: { title: string; content: string }) => {
+    const { data, error } = await supabase
+      .from('sales_scripts')
+      .insert([{
+        title: script.title,
+        content: script.content,
+        user_id: currentUser?.id
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível criar o script.', 'ERROR');
+      return null;
+    }
+
+    const newScript: SalesScript = {
+      id: data.id,
+      title: data.title,
+      content: data.content,
+      userId: data.user_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
+
+    setSalesScripts(prev => [newScript, ...prev]);
+    addNotification('Sucesso', 'Script criado com sucesso!', 'SUCCESS');
+    return data.id;
+  };
+
+  const updateSalesScript = async (id: string, updates: Partial<SalesScript>) => {
+    const dbUpdates: any = {};
+    if (updates.title) dbUpdates.title = updates.title;
+    if (updates.content) dbUpdates.content = updates.content;
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from('sales_scripts')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível atualizar o script.', 'ERROR');
+      return;
+    }
+
+    setSalesScripts(prev => prev.map(s => s.id === id ? { ...s, ...updates, updatedAt: dbUpdates.updated_at } : s));
+  };
+
+  const deleteSalesScript = async (id: string) => {
+    const { error } = await supabase
+      .from('sales_scripts')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível excluir o script.', 'ERROR');
+      return;
+    }
+
+    setSalesScripts(prev => prev.filter(s => s.id !== id));
+    addNotification('Sucesso', 'Script removido com sucesso.', 'INFO');
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, users, leads, logs, tags, channels, origins, notifications,
       activeModal, isSidebarCollapsed, toggleSidebar, openModal, closeModal,
-      addLead, updateLead, deleteLead, moveLead, updateUser, deleteUser, addNotification, clearNotification, addLeadNote, addLeadSale,
+      addLead, updateLead, deleteLead, moveLead, updateUser, deleteUser, addNotification, clearNotification, addLeadNote, editLeadNote, deleteLeadNote, addLeadSale,
       addTag, updateTag, removeTag, addChannel, updateChannel, removeChannel, addOrigin, updateOrigin, removeOrigin, fetchLeads, fetchUsers, fetchLeadHistory, fetchGlobalStats, fetchTrafficInvestments,
       globalStats, hasMore, isLoadingMore, loadMore, fetchAllClients, trafficInvestments,
       filters, setFilters,
       companySettings, updateSettings, fetchSettings,
       cadenceFlows, addCadenceFlow, updateCadenceFlow, deleteCadenceFlow, fetchCadenceFlows,
-      pendingApprovals, fetchPendingApprovals, approveUser, rejectUser
+      pendingApprovals, fetchPendingApprovals, approveUser, rejectUser,
+      salesScripts, fetchSalesScripts, addSalesScript, updateSalesScript, deleteSalesScript
     }}>
 
       {children}

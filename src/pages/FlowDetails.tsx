@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, List, KanbanSquare as KanbanIcon, Calendar as CalendarIcon,
-    ChevronDown, ChevronRight, Workflow, Plus, Search, Filter, Check, Clock, X, Trash2, ChevronLeft
+    ChevronDown, ChevronRight, Workflow, Plus, Search, Filter, Check, Clock, X, Trash2, Edit2, ChevronLeft,
+    FileText, History, ArrowRight, User
 } from 'lucide-react';
 import { useApp } from '../store';
 import { Lead, AfterSalesStatus, CadenceTask, LeadStatus } from '../types';
@@ -26,7 +27,7 @@ type ViewMode = 'LIST' | 'KANBAN' | 'CALENDAR';
 export const FlowDetails: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { cadenceFlows, updateCadenceFlow, leads, users, currentUser, tags: availableTags, updateLead, addTag } = useApp();
+    const { cadenceFlows, updateCadenceFlow, leads, users, currentUser, tags: availableTags, updateLead, addTag, fetchLeadHistory, addLeadNote, editLeadNote, deleteLeadNote } = useApp();
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
 
     const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -46,6 +47,9 @@ export const FlowDetails: React.FC = () => {
 
     const [tagSearch, setTagSearch] = useState('');
     const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+    const [editingNoteContent, setEditingNoteContent] = useState('');
 
     // close period dropdown on outside click - removed (using panel pattern now)
 
@@ -114,6 +118,50 @@ export const FlowDetails: React.FC = () => {
     const [actionSearch, setActionSearch] = useState('');
     const [showActionSuggestions, setShowActionSuggestions] = useState(false);
 
+    const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'history'>('info');
+    const [manualNote, setManualNote] = useState('');
+    const [history, setHistory] = useState<any[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    useEffect(() => {
+        if (isTaskModalOpen && selectedTask?.lead?.id && activeDetailTab === 'history') {
+            setLoadingHistory(true);
+            fetchLeadHistory(selectedTask.lead.id).then(data => {
+                setHistory(data);
+                setLoadingHistory(false);
+            });
+        }
+    }, [isTaskModalOpen, selectedTask?.lead?.id, activeDetailTab, fetchLeadHistory]);
+
+    const handleRegisterEntry = async () => {
+        if (!selectedTask?.lead) return;
+        if (manualNote.trim()) {
+            await addLeadNote(selectedTask.lead.id, manualNote);
+            setManualNote('');
+            
+            const updatedHistory = await fetchLeadHistory(selectedTask.lead.id);
+            setHistory(updatedHistory);
+            
+            setTimeout(() => setActiveDetailTab('history'), 100);
+        }
+    };
+
+    const handleSaveEditNote = async (noteId: string) => {
+        if (!editingNoteContent.trim() || !selectedTask?.lead) return;
+        await editLeadNote(noteId, editingNoteContent);
+        setEditingNoteId(null);
+        setEditingNoteContent('');
+        const updatedHistory = await fetchLeadHistory(selectedTask.lead.id);
+        setHistory(updatedHistory);
+    };
+
+    const handleDeleteNote = async (noteId: string) => {
+        if (!window.confirm('Tem certeza que deseja excluir esta observação?') || !selectedTask?.lead) return;
+        await deleteLeadNote(noteId);
+        const updatedHistory = await fetchLeadHistory(selectedTask.lead.id);
+        setHistory(updatedHistory);
+    };
+
     useEffect(() => {
         const fetchCommercialActions = async () => {
             const { data } = await supabase.from('commercial_actions').select('id, name, start_date, end_date, color').order('name');
@@ -132,6 +180,7 @@ export const FlowDetails: React.FC = () => {
         const now = new Date();
         return { year: now.getFullYear(), month: now.getMonth() };
     });
+    const [targetStageToAdvance, setTargetStageToAdvance] = useState<string | null>(null);
 
     const calendarMonthNames = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -209,13 +258,20 @@ export const FlowDetails: React.FC = () => {
     };
 
     // Opens modal to pick due date before advancing; completes directly if last stage
-    const handleAdvanceStage = (taskId: string, fromModal = false) => {
+    const handleAdvanceStage = (taskId: string, fromModal = false, targetStageId?: string) => {
         if (!flow) return;
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
-        const currentIndex = flow.stages.findIndex(s => s.id === task.stageId);
-        const isLastStage = currentIndex < 0 || currentIndex >= flow.stages.length - 1;
+        let finalTargetId = targetStageId;
+        if (!finalTargetId) {
+            const currentIndex = flow.stages.findIndex(s => s.id === task.stageId);
+            if (currentIndex >= 0 && currentIndex < flow.stages.length - 1) {
+                finalTargetId = flow.stages[currentIndex + 1].id;
+            }
+        }
+
+        const isLastStage = !finalTargetId;
 
         if (isLastStage) {
             // Just complete the task — no next stage
@@ -224,6 +280,7 @@ export const FlowDetails: React.FC = () => {
         } else {
             // Show date picker modal
             setTaskToAdvance(taskId);
+            setTargetStageToAdvance(finalTargetId || null);
             setAdvanceDueDate('');
             setCalendarDate({ year: new Date().getFullYear(), month: new Date().getMonth() });
             setIsAdvanceModalOpen(true);
@@ -234,22 +291,27 @@ export const FlowDetails: React.FC = () => {
     const confirmAdvanceStage = async () => {
         if (!taskToAdvance || !flow) return;
         const isoDate = advanceDueDate ? new Date(advanceDueDate).toISOString() : null;
-        await completeTask(taskToAdvance, isoDate);
+        await completeTask(taskToAdvance, isoDate, targetStageToAdvance || undefined);
         setIsAdvanceModalOpen(false);
         setTaskToAdvance(null);
+        setTargetStageToAdvance(null);
         setAdvanceDueDate('');
     };
 
-    const completeTask = async (taskId: string, dueDate: string | null) => {
+    const completeTask = async (taskId: string, dueDate: string | null, explicitTargetStageId?: string) => {
         if (!flow) return;
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
-        const currentIndex = flow.stages.findIndex(s => s.id === task.stageId);
-        if (currentIndex >= 0 && currentIndex < flow.stages.length - 1) {
-            const nextStage = flow.stages[currentIndex + 1];
-            const nextStageId = nextStage.id;
+        let nextStageId = explicitTargetStageId;
+        if (!nextStageId) {
+            const currentIndex = flow.stages.findIndex(s => s.id === task.stageId);
+            if (currentIndex >= 0 && currentIndex < flow.stages.length - 1) {
+                nextStageId = flow.stages[currentIndex + 1].id;
+            }
+        }
 
+        if (nextStageId) {
             const { error } = await supabase
                 .from('cadence_tasks')
                 .update({
@@ -600,7 +662,20 @@ export const FlowDetails: React.FC = () => {
                 const colorClass = colors[index % colors.length];
 
                 return (
-                    <div key={stage.id} className="flex-shrink-0 w-80 bg-[#040608] border border-fortis-surface/30 rounded-2xl flex flex-col h-full animate-in slide-in-from-bottom-2 duration-300">
+                    <div key={stage.id} 
+                         className="flex-shrink-0 w-80 bg-[#040608] border border-fortis-surface/30 rounded-2xl flex flex-col h-full animate-in slide-in-from-bottom-2 duration-300"
+                         onDragOver={(e) => e.preventDefault()}
+                         onDrop={(e) => {
+                             e.preventDefault();
+                             const taskId = e.dataTransfer.getData('taskId');
+                             if (taskId) {
+                                 const task = tasks.find(t => t.id === taskId);
+                                 if (task && task.stageId !== stage.id) {
+                                     handleAdvanceStage(taskId, false, stage.id);
+                                 }
+                             }
+                         }}
+                    >
                         <div className="p-4 border-b border-fortis-surface/50 flex justify-between items-center">
                             <h3 className="font-bold text-white flex items-center gap-2 flex-1">
                                 <div className={`w-2 h-2 rounded-full ${colorClass} flex-shrink-0`} />
@@ -653,8 +728,12 @@ export const FlowDetails: React.FC = () => {
                                     return (
                                         <div
                                             key={task.id}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.dataTransfer.setData('taskId', task.id);
+                                            }}
                                             onClick={() => openTaskModal(task)}
-                                            className="bg-[#141F28] border border-fortis-surface/40 rounded-xl p-4 shadow-sm hover:border-fortis-brand/40 transition-all flex flex-col gap-3 cursor-pointer group"
+                                            className="bg-[#141F28] border border-fortis-surface/40 rounded-xl p-4 shadow-sm hover:border-fortis-brand/40 transition-all flex flex-col gap-3 cursor-pointer group active:cursor-grabbing"
                                         >
                                             <div className="flex justify-between items-start">
                                                 <p className="font-bold text-sm text-white truncate pr-2 tracking-tight">{lead.name}</p>
@@ -1047,19 +1126,37 @@ export const FlowDetails: React.FC = () => {
             {/* Modal de Detalhes e Instruções da Tarefa */}
             {isTaskModalOpen && selectedTask && selectedTask.lead && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-                    <div className="bg-fortis-panel border border-fortis-surface w-full max-w-2xl rounded-2xl shadow-2xl p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Workflow size={20} className="text-cyan-500" /> Detalhes do lead
-                            </h2>
+                    <div className="bg-fortis-panel border border-fortis-surface w-full max-w-2xl h-[700px] max-h-[85vh] flex flex-col rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-start mb-6 shrink-0">
+                            <div>
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
+                                    <Workflow size={20} className="text-cyan-500" /> Detalhes do lead
+                                </h2>
+                                <div className="flex gap-4">
+                                    {[
+                                        { id: 'info', icon: FileText, label: 'Perfil' },
+                                        { id: 'history', icon: History, label: 'Histórico' }
+                                    ].map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveDetailTab(tab.id as any)}
+                                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeDetailTab === tab.id ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 ring-1 ring-white/10' : 'text-fortis-mid hover:text-white hover:bg-fortis-surface'}`}
+                                        >
+                                            <tab.icon size={14} /> {tab.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <button type="button" onClick={() => setIsTaskModalOpen(false)} className="text-fortis-mid hover:text-white">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <div className="space-y-6">
-                            {/* Lead Info (Read Only) */}
-                            <div className="bg-fortis-dark/50 border border-fortis-surface p-4 rounded-xl space-y-5">
+                        <div className="flex-1 flex flex-col min-h-0">
+                            {activeDetailTab === 'info' && (
+                                <div className="animate-in fade-in duration-300 space-y-6 overflow-y-auto custom-scrollbar pr-2 h-full">
+                                    {/* Lead Info (Read Only) */}
+                                    <div className="bg-fortis-dark/50 border border-fortis-surface p-4 rounded-xl space-y-5">
                                 <div>
                                     <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Dados Pessoais</h3>
                                     <div className="grid grid-cols-2 gap-4">
@@ -1339,10 +1436,169 @@ export const FlowDetails: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+                                </div>
+                            )}
+                            {activeDetailTab === 'history' && (
+                                <div className="animate-in fade-in duration-300 flex-1 flex flex-col min-h-0">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4">
+                                    {loadingHistory ? (
+                                        <div className="text-center py-12 flex flex-col items-center">
+                                            <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                            <p className="text-fortis-mid text-[10px] font-black uppercase tracking-widest">Buscando histórico...</p>
+                                        </div>
+                                    ) : history.length === 0 ? (
+                                        <div className="text-center py-12 flex flex-col items-center">
+                                            <div className="p-5 bg-fortis-panel/20 rounded-full mb-6">
+                                                <History size={40} className="text-fortis-surface/40" />
+                                            </div>
+                                            <p className="text-fortis-mid text-sm font-black uppercase tracking-widest">Sem registros recentes</p>
+                                        </div>
+                                    ) : (
+                                        <div className="relative pl-10">
+                                            <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-fortis-surface z-0" />
+
+                                            <div className="space-y-12 pt-2">
+                                                {history.map((item: any) => {
+                                                let statusColor = '#FFFFFF';
+                                                if (item.field === 'status' && item.newValue) {
+                                                    const statusKey = Object.keys(LEAD_STATUS_MAP).find(
+                                                        k => LEAD_STATUS_MAP[k as LeadStatus].label === item.newValue
+                                                    ) as LeadStatus;
+                                                    if (statusKey) statusColor = LEAD_STATUS_MAP[statusKey].color;
+                                                }
+
+                                                return (
+                                                    <div key={item.id} className="relative group">
+                                                        <div
+                                                            className={`absolute -left-[27px] top-[4px] w-3.5 h-3.5 rounded-full ring-[4px] ring-black z-20 transition-transform group-hover:scale-125 ${item.type === 'SALE' ? 'bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]' : 'bg-white'
+                                                                }`}
+                                                        />
+
+                                                        <div className="flex flex-col gap-4">
+                                                            <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 shadow-2xl group-hover:border-cyan-500/40 transition-all">
+                                                                {item.type === 'EDIT' && item.oldValue !== undefined && item.newValue !== undefined ? (
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className="text-xs font-bold text-white/40 line-through truncate max-w-[150px]">{item.oldValue}</span>
+                                                                        <ArrowRight size={16} className="text-cyan-500 shrink-0" />
+                                                                        <span
+                                                                            className="text-xs font-black px-3 py-1 rounded-xl uppercase tracking-widest border shadow-sm"
+                                                                            style={{
+                                                                                color: statusColor,
+                                                                                borderColor: `${statusColor}40`,
+                                                                                backgroundColor: `${statusColor}15`
+                                                                            }}
+                                                                        >
+                                                                            {item.newValue}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : item.type === 'NOTE' ? (
+                                                                    editingNoteId === item.id ? (
+                                                                        <div className="flex flex-col gap-3">
+                                                                            <textarea
+                                                                                className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-500 transition-all resize-none h-24"
+                                                                                value={editingNoteContent}
+                                                                                onChange={(e) => setEditingNoteContent(e.target.value)}
+                                                                            />
+                                                                            <div className="flex justify-end gap-2">
+                                                                                <button
+                                                                                    onClick={() => setEditingNoteId(null)}
+                                                                                    className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
+                                                                                >
+                                                                                    Cancelar
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleSaveEditNote(item.id)}
+                                                                                    className="px-4 py-2 bg-cyan-500 text-white text-xs font-bold rounded-lg hover:bg-cyan-600 transition-colors"
+                                                                                >
+                                                                                    Salvar
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex justify-between items-start gap-4">
+                                                                            <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
+                                                                                {item.description}
+                                                                            </p>
+                                                                            {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
+                                                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            setEditingNoteId(item.id);
+                                                                                            setEditingNoteContent(item.description);
+                                                                                        }}
+                                                                                        className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-cyan-400 transition-colors"
+                                                                                        title="Editar"
+                                                                                    >
+                                                                                        <Edit2 size={14} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => handleDeleteNote(item.id)}
+                                                                                        className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
+                                                                                        title="Excluir"
+                                                                                    >
+                                                                                        <Trash2 size={14} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )
+                                                                ) : (
+                                                                    <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
+                                                                        {item.description}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                                                                    <CalendarIcon size={13} className="text-blue-400" />
+                                                                    {new Date(item.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })}
+                                                                </div>
+                                                                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                                                                    <User size={13} className="text-emerald-400" />
+                                                                    {item.type === 'SALE' ? 'Sistema' : (users.find(u => u.id === item.userId)?.name || 'Sistema').split(' ')[0]}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            </div>
+                                        </div>
+                                    )}
+                                    </div>
+                                    
+                                    {/* Registrar Atividade */}
+                                    <div className="shrink-0 pt-4 border-t border-fortis-surface/50 mt-2">
+                                        <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 focus-within:border-cyan-500/50 transition-all shadow-inner space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em]">REGISTRAR ATIVIDADE</h4>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <textarea
+                                                    value={manualNote}
+                                                    onChange={(e) => setManualNote(e.target.value)}
+                                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white font-semibold outline-none focus:border-cyan-500 transition-all placeholder:text-fortis-mid/40 resize-none h-20 leading-relaxed shadow-inner"
+                                                    placeholder="Descreva a interação com o lead..."
+                                                />
+                                            </div>
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={handleRegisterEntry}
+                                                    disabled={!manualNote.trim()}
+                                                    className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-20 px-6 py-2.5 rounded-xl text-[10px] font-black text-white shadow-lg shadow-cyan-500/30 transition-all active:scale-95 uppercase tracking-widest"
+                                                >
+                                                    Salvar Nota
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                         </div>
 
-                        <div className="flex items-center justify-between mt-8">
+                        <div className="flex items-center justify-between shrink-0 mt-6 pt-6 border-t border-fortis-surface/50">
                             {/* Botão excluir — somente ADMIN */}
                             {currentUser?.role === 'ADMIN' ? (
                                 <button

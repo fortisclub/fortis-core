@@ -239,6 +239,17 @@ export const CommercialActions: React.FC = () => {
     }
   };
 
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const todaySP = formatter.format(new Date());
+
+  const upcomingActions = actions.filter(a => a.startDate > todaySP).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const nextActionId = upcomingActions.length > 0 ? upcomingActions[0].id : null;
+
   return (
     <div className="flex flex-col h-full animate-in fade-in duration-500">
       <div className="space-y-6 h-full flex flex-col relative">
@@ -277,13 +288,31 @@ export const CommercialActions: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
                     {actions.map(action => {
                         const selType = ACTION_OPTIONS.find(a => a.value === action.selectedAction);
+                        
+                        let statusTag = { label: '', color: '' };
+                        if (action.endDate < todaySP) {
+                            statusTag = { label: 'Encerrada', color: 'bg-fortis-surface/30 text-fortis-mid border-fortis-surface/50' };
+                        } else if (action.startDate <= todaySP && action.endDate >= todaySP) {
+                            statusTag = { label: 'Em andamento', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]' };
+                        } else {
+                            if (action.id === nextActionId) {
+                                statusTag = { label: 'Próxima Ação', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]' };
+                            } else {
+                                statusTag = { label: 'Programada', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' };
+                            }
+                        }
+
                         return (
                         <div
                             key={action.id}
                             onClick={() => handleOpenModal(action)}
-                            className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6 hover:border-fortis-brand/50 transition-all cursor-pointer group flex flex-col relative overflow-hidden shadow-sm hover:shadow-xl"
+                            className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6 pt-7 hover:border-fortis-brand/50 transition-all cursor-pointer group flex flex-col relative overflow-hidden shadow-sm hover:shadow-xl"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-fortis-brand opacity-0 group-hover:opacity-100 transition-opacity" />
+                            
+                            <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl border-l border-b text-[9px] font-black uppercase tracking-wider transition-colors z-10 ${statusTag.color}`}>
+                                {statusTag.label}
+                            </div>
 
                             <div className="flex items-start justify-between mb-2">
                                 <h3 className="font-bold text-base text-white group-hover:text-fortis-brand transition-colors">

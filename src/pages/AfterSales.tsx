@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Star, TrendingUp, AlertCircle, ShoppingCart, MoreVertical, X, History, FileText, Phone, AtSign, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Calendar, User, Tags as TagsIcon, Check, ChevronDown, Plus, Workflow } from 'lucide-react';
+import { Search, Filter, Star, TrendingUp, AlertCircle, ShoppingCart, MoreVertical, X, History, FileText, Phone, AtSign, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Trash2, Calendar, User, Tags as TagsIcon, Check, ChevronDown, Plus, Workflow } from 'lucide-react';
 import { useApp } from '../store';
 import { supabase } from '../lib/supabase';
 import { AFTER_SALES_STATUS_MAP, LEAD_STATUS_MAP } from '../constants';
@@ -11,7 +11,7 @@ import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
 
 export const AfterSales: React.FC = () => {
-  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead, fetchLeadHistory, cadenceFlows } = useApp();
+  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead, fetchLeadHistory, cadenceFlows, currentUser, editLeadNote, deleteLeadNote } = useApp();
 
   // Estado para mapear leads aos seus fluxos de cadência ativos (ID e Nome)
   const [activeFlowsMap, setActiveFlowsMap] = useState<Record<string, { id: string, name: string }>>({});
@@ -69,6 +69,9 @@ export const AfterSales: React.FC = () => {
 
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
 
   // Carregar histórico apenas quando necessário
   React.useEffect(() => {
@@ -131,6 +134,22 @@ export const AfterSales: React.FC = () => {
     setHistory(updatedHistory);
     
     setTimeout(() => setActiveDetailTab('history'), 100);
+  };
+
+  const handleSaveEditNote = async (noteId: string) => {
+    if (!editingNoteContent.trim() || !selectedLead) return;
+    await editLeadNote(noteId, editingNoteContent);
+    setEditingNoteId(null);
+    setEditingNoteContent('');
+    const updatedHistory = await fetchLeadHistory(selectedLead.id);
+    setHistory(updatedHistory);
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta observação?') || !selectedLead) return;
+    await deleteLeadNote(noteId);
+    const updatedHistory = await fetchLeadHistory(selectedLead.id);
+    setHistory(updatedHistory);
   };
 
   const availableOrigins = useMemo(() => {
@@ -732,9 +751,10 @@ export const AfterSales: React.FC = () => {
                       <p className="text-fortis-mid text-sm font-black uppercase tracking-widest">Sem registros recentes</p>
                     </div>
                   ) : (
-                    <div className="relative pl-10 space-y-12">
+                    <div className="relative pl-10">
                       <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-fortis-surface z-0" />
 
+                      <div className="space-y-12 pt-2">
                       {history.map((item) => {
                         let statusColor = '#FFFFFF';
 
@@ -774,8 +794,59 @@ export const AfterSales: React.FC = () => {
                                       {item.newValue}
                                     </span>
                                   </div>
+                                ) : item.type === 'NOTE' ? (
+                                  editingNoteId === item.id ? (
+                                      <div className="flex flex-col gap-3">
+                                          <textarea
+                                              className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fortis-brand transition-all resize-none h-24"
+                                              value={editingNoteContent}
+                                              onChange={(e) => setEditingNoteContent(e.target.value)}
+                                          />
+                                          <div className="flex justify-end gap-2">
+                                              <button
+                                                  onClick={() => setEditingNoteId(null)}
+                                                  className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
+                                              >
+                                                  Cancelar
+                                              </button>
+                                              <button
+                                                  onClick={() => handleSaveEditNote(item.id)}
+                                                  className="px-4 py-2 bg-fortis-brand text-white text-xs font-bold rounded-lg hover:bg-fortis-brand/80 transition-colors"
+                                              >
+                                                  Salvar
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ) : (
+                                      <div className="flex justify-between items-start gap-4">
+                                          <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
+                                              {item.description}
+                                          </p>
+                                          {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
+                                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                  <button
+                                                      onClick={() => {
+                                                          setEditingNoteId(item.id);
+                                                          setEditingNoteContent(item.description);
+                                                      }}
+                                                      className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-fortis-brand transition-colors"
+                                                      title="Editar"
+                                                  >
+                                                      <Edit2 size={14} />
+                                                  </button>
+                                                  <button
+                                                      onClick={() => handleDeleteNote(item.id)}
+                                                      className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
+                                                      title="Excluir"
+                                                  >
+                                                      <Trash2 size={14} />
+                                                  </button>
+                                              </div>
+                                          )}
+                                      </div>
+                                  )
                                 ) : (
-                                  <p className="text-sm text-white font-bold leading-relaxed opacity-90">
+                                  <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
                                     {item.description}
                                   </p>
                                 )}
@@ -795,6 +866,7 @@ export const AfterSales: React.FC = () => {
                           </div>
                         );
                       })}
+                      </div>
                     </div>
                   )}
                 </div>
