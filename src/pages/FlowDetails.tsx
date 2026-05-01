@@ -114,7 +114,7 @@ export const FlowDetails: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<CadenceTask | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [taskInstructions, setTaskInstructions] = useState('');
-    const [commercialActions, setCommercialActions] = useState<{id: string; name: string; start_date: string; end_date: string, color?: string}[]>([]);
+    const [commercialActions, setCommercialActions] = useState<{ id: string; name: string; start_date: string; end_date: string, color?: string }[]>([]);
     const [actionSearch, setActionSearch] = useState('');
     const [showActionSuggestions, setShowActionSuggestions] = useState(false);
 
@@ -138,10 +138,10 @@ export const FlowDetails: React.FC = () => {
         if (manualNote.trim()) {
             await addLeadNote(selectedTask.lead.id, manualNote);
             setManualNote('');
-            
+
             const updatedHistory = await fetchLeadHistory(selectedTask.lead.id);
             setHistory(updatedHistory);
-            
+
             setTimeout(() => setActiveDetailTab('history'), 100);
         }
     };
@@ -662,19 +662,19 @@ export const FlowDetails: React.FC = () => {
                 const colorClass = colors[index % colors.length];
 
                 return (
-                    <div key={stage.id} 
-                         className="flex-shrink-0 w-80 bg-[#040608] border border-fortis-surface/30 rounded-2xl flex flex-col h-full animate-in slide-in-from-bottom-2 duration-300"
-                         onDragOver={(e) => e.preventDefault()}
-                         onDrop={(e) => {
-                             e.preventDefault();
-                             const taskId = e.dataTransfer.getData('taskId');
-                             if (taskId) {
-                                 const task = tasks.find(t => t.id === taskId);
-                                 if (task && task.stageId !== stage.id) {
-                                     handleAdvanceStage(taskId, false, stage.id);
-                                 }
-                             }
-                         }}
+                    <div key={stage.id}
+                        className="flex-shrink-0 w-80 bg-[#040608] border border-fortis-surface/30 rounded-2xl flex flex-col h-full animate-in slide-in-from-bottom-2 duration-300"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            const taskId = e.dataTransfer.getData('taskId');
+                            if (taskId) {
+                                const task = tasks.find(t => t.id === taskId);
+                                if (task && task.stageId !== stage.id) {
+                                    handleAdvanceStage(taskId, false, stage.id);
+                                }
+                            }
+                        }}
                     >
                         <div className="p-4 border-b border-fortis-surface/50 flex justify-between items-center">
                             <h3 className="font-bold text-white flex items-center gap-2 flex-1">
@@ -1157,97 +1157,175 @@ export const FlowDetails: React.FC = () => {
                                 <div className="animate-in fade-in duration-300 space-y-6 overflow-y-auto custom-scrollbar pr-2 h-full">
                                     {/* Lead Info (Read Only) */}
                                     <div className="bg-fortis-dark/50 border border-fortis-surface p-4 rounded-xl space-y-5">
-                                <div>
-                                    <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Dados Pessoais</h3>
-                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <p className="text-xs text-fortis-mid">Nome</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.name}</p>
+                                            <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Dados Pessoais</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">Nome</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.name}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">CPF</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.cpf || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">E-mail</p>
+                                                    <p className="font-bold text-white break-all">{selectedTask.lead.email || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">Telefone</p>
+                                                    <p className="font-bold text-white">{selectedTask.lead.phone || '-'}</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">CPF</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.cpf || '-'}</p>
+                                        <div className="border-t border-fortis-surface/50 pt-3">
+                                            <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Endereço</h3>
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div className="col-span-2">
+                                                    <p className="text-xs text-fortis-mid">Endereço</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.address || '-'}</p>
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <p className="text-xs text-fortis-mid">Número</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.addressNumber || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">Bairro</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.district || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">Cidade</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.city || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">UF</p>
+                                                    <p className="font-bold text-white truncate">{selectedTask.lead.uf || '-'}</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">E-mail</p>
-                                            <p className="font-bold text-white break-all">{selectedTask.lead.email || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">Telefone</p>
-                                            <p className="font-bold text-white">{selectedTask.lead.phone || '-'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="border-t border-fortis-surface/50 pt-3">
-                                    <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Endereço</h3>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="col-span-2">
-                                            <p className="text-xs text-fortis-mid">Endereço</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.address || '-'}</p>
-                                        </div>
-                                        <div className="col-span-1">
-                                            <p className="text-xs text-fortis-mid">Número</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.addressNumber || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">Bairro</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.district || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">Cidade</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.city || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">UF</p>
-                                            <p className="font-bold text-white truncate">{selectedTask.lead.uf || '-'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="border-t border-fortis-surface/50 pt-3">
-                                    <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Status e Previsão</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">Etapa atual do fluxo</p>
-                                            <p className="font-bold text-cyan-400">{flow?.stages?.find(s => s.id === selectedTask.stageId)?.name || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-fortis-mid">Data de Conclusão / Abordagem</p>
-                                            <p className="font-bold text-white">{selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</p>
-                                        </div>
-                                        <div className="col-span-2">
-                                            <p className="text-xs text-fortis-mid mb-1">Ações Comerciais Vinculadas</p>
-                                            <div className="relative">
-                                                <div className="bg-fortis-panel border border-fortis-surface rounded-lg p-2 min-h-[42px] focus-within:border-fortis-brand transition-colors">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {selectedTask.lead.commercialActionIds?.map((actionId: string) => {
-                                                            const actionConfig = commercialActions.find(a => a.id === actionId);
-                                                            if (!actionConfig) return null;
-                                                            return (
-                                                                <span
-                                                                    key={actionId}
-                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm"
-                                                                    style={{ 
-                                                                        backgroundColor: actionConfig.color ? `${actionConfig.color}33` : 'rgba(6, 182, 212, 0.2)',
-                                                                        color: actionConfig.color || '#06b6d4',
-                                                                        border: `1px solid ${actionConfig.color ? `${actionConfig.color}4d` : 'rgba(6, 182, 212, 0.3)'}`
-                                                                    }}
-                                                                >
-                                                                    <span>
-                                                                        {actionConfig.name}
-                                                                        <span className="font-normal opacity-70 ml-1 text-[10px]" style={{ color: actionConfig.color || '#06b6d4' }}>
-                                                                            ({new Date(actionConfig.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(actionConfig.end_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })})
+                                        <div className="border-t border-fortis-surface/50 pt-3">
+                                            <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Status e Previsão</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">Etapa atual do fluxo</p>
+                                                    <p className="font-bold text-cyan-400">{flow?.stages?.find(s => s.id === selectedTask.stageId)?.name || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-fortis-mid">Data de Conclusão / Abordagem</p>
+                                                    <p className="font-bold text-white">{selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</p>
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <p className="text-xs text-fortis-mid mb-1">Ações Comerciais Vinculadas</p>
+                                                    <div className="relative">
+                                                        <div className="bg-fortis-panel border border-fortis-surface rounded-lg p-2 min-h-[42px] focus-within:border-fortis-brand transition-colors">
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {selectedTask.lead.commercialActionIds?.map((actionId: string) => {
+                                                                    const actionConfig = commercialActions.find(a => a.id === actionId);
+                                                                    if (!actionConfig) return null;
+                                                                    return (
+                                                                        <span
+                                                                            key={actionId}
+                                                                            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm"
+                                                                            style={{
+                                                                                backgroundColor: actionConfig.color ? `${actionConfig.color}33` : 'rgba(6, 182, 212, 0.2)',
+                                                                                color: actionConfig.color || '#06b6d4',
+                                                                                border: `1px solid ${actionConfig.color ? `${actionConfig.color}4d` : 'rgba(6, 182, 212, 0.3)'}`
+                                                                            }}
+                                                                        >
+                                                                            <span>
+                                                                                {actionConfig.name}
+                                                                                <span className="font-normal opacity-70 ml-1 text-[10px]" style={{ color: actionConfig.color || '#06b6d4' }}>
+                                                                                    ({new Date(actionConfig.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(actionConfig.end_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })})
+                                                                                </span>
+                                                                            </span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={async () => {
+                                                                                    const newActions = (selectedTask.lead!.commercialActionIds || []).filter(id => id !== actionId);
+                                                                                    const updatedLead = { ...selectedTask.lead!, commercialActionIds: newActions };
+                                                                                    setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                                    setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                                    await updateLead(selectedTask.lead!.id, { commercialActionIds: newActions });
+                                                                                }}
+                                                                                className="hover:bg-cyan-500/30 rounded-full p-0.5 ml-1 transition-colors"
+                                                                            >
+                                                                                <X size={10} />
+                                                                            </button>
                                                                         </span>
-                                                                    </span>
+                                                                    );
+                                                                })}
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Pesquise ou adicione..."
+                                                                    className="bg-transparent border-none outline-none text-xs text-white placeholder:text-fortis-mid flex-1 min-w-[100px]"
+                                                                    value={actionSearch}
+                                                                    onChange={(e) => {
+                                                                        setActionSearch(e.target.value);
+                                                                        setShowActionSuggestions(true);
+                                                                    }}
+                                                                    onFocus={() => setShowActionSuggestions(true)}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {showActionSuggestions && commercialActions.filter(a => a.name.toLowerCase().includes(actionSearch.toLowerCase()) && !selectedTask.lead!.commercialActionIds?.includes(a.id)).length > 0 && (
+                                                            <div className="absolute z-[60] left-0 right-0 mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                {commercialActions.filter(a => a.name.toLowerCase().includes(actionSearch.toLowerCase()) && !selectedTask.lead!.commercialActionIds?.includes(a.id)).map(action => (
                                                                     <button
+                                                                        key={action.id}
                                                                         type="button"
+                                                                        className="w-full flex flex-col justify-center px-4 py-2.5 text-left text-xs hover:bg-fortis-surface transition-colors border-b border-fortis-surface/50 last:border-0"
                                                                         onClick={async () => {
-                                                                            const newActions = (selectedTask.lead!.commercialActionIds || []).filter(id => id !== actionId);
+                                                                            const newActions = [...(selectedTask.lead!.commercialActionIds || []), action.id];
                                                                             const updatedLead = { ...selectedTask.lead!, commercialActionIds: newActions };
                                                                             setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
                                                                             setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
                                                                             await updateLead(selectedTask.lead!.id, { commercialActionIds: newActions });
+                                                                            setActionSearch('');
+                                                                            setShowActionSuggestions(false);
                                                                         }}
-                                                                        className="hover:bg-cyan-500/30 rounded-full p-0.5 ml-1 transition-colors"
+                                                                    >
+                                                                        <span className="font-bold text-white">{action.name}</span>
+                                                                        <span className="text-fortis-mid mt-0.5 text-[10px]">
+                                                                            {new Date(action.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(action.end_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                                                        </span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="border-t border-fortis-surface/50 pt-3">
+                                            <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Tags</h3>
+                                            <div className="relative">
+                                                <div className="bg-fortis-panel border border-fortis-surface rounded-lg p-2 min-h-[42px] focus-within:border-fortis-brand transition-colors">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedTask.lead.tags?.map((tagLabel: string) => {
+                                                            const tagConfig = availableTags.find(t => t.label === tagLabel);
+                                                            return (
+                                                                <span
+                                                                    key={tagLabel}
+                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm"
+                                                                    style={{ backgroundColor: tagConfig?.color || '#575756' }}
+                                                                >
+                                                                    {tagLabel}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async () => {
+                                                                            const newTags = (selectedTask.lead!.tags || []).filter(t => t !== tagLabel);
+                                                                            const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                            setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                            setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                            await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                        }}
+                                                                        className="hover:bg-black/20 rounded-full p-0.5"
                                                                     >
                                                                         <X size={10} />
                                                                     </button>
@@ -1258,316 +1336,238 @@ export const FlowDetails: React.FC = () => {
                                                             type="text"
                                                             placeholder="Pesquise ou adicione..."
                                                             className="bg-transparent border-none outline-none text-xs text-white placeholder:text-fortis-mid flex-1 min-w-[100px]"
-                                                            value={actionSearch}
+                                                            value={tagSearch}
                                                             onChange={(e) => {
-                                                                setActionSearch(e.target.value);
-                                                                setShowActionSuggestions(true);
+                                                                setTagSearch(e.target.value);
+                                                                setShowTagSuggestions(true);
                                                             }}
-                                                            onFocus={() => setShowActionSuggestions(true)}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
+                                                            onFocus={() => setShowTagSuggestions(true)}
+                                                            onKeyDown={async (e) => {
+                                                                if (e.key === 'Enter' && tagSearch.trim()) {
                                                                     e.preventDefault();
+                                                                    const newTag = tagSearch.trim();
+                                                                    if (!selectedTask.lead!.tags?.includes(newTag)) {
+                                                                        const newTags = [...(selectedTask.lead!.tags || []), newTag];
+                                                                        const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                        setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                        setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                        await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                        if (!availableTags.some(t => t.label.toLowerCase() === newTag.toLowerCase())) {
+                                                                            await addTag(newTag);
+                                                                        }
+                                                                    }
+                                                                    setTagSearch('');
+                                                                    setShowTagSuggestions(false);
                                                                 }
                                                             }}
                                                         />
                                                     </div>
                                                 </div>
 
-                                                {showActionSuggestions && commercialActions.filter(a => a.name.toLowerCase().includes(actionSearch.toLowerCase()) && !selectedTask.lead!.commercialActionIds?.includes(a.id)).length > 0 && (
+                                                {showTagSuggestions && (tagSearch || availableTags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase())).length > 0) && (
                                                     <div className="absolute z-[60] left-0 right-0 mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
-                                                        {commercialActions.filter(a => a.name.toLowerCase().includes(actionSearch.toLowerCase()) && !selectedTask.lead!.commercialActionIds?.includes(a.id)).map(action => (
+                                                        {availableTags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => (
                                                             <button
-                                                                key={action.id}
+                                                                key={tag.id}
                                                                 type="button"
-                                                                className="w-full flex flex-col justify-center px-4 py-2.5 text-left text-xs hover:bg-fortis-surface transition-colors border-b border-fortis-surface/50 last:border-0"
+                                                                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs hover:bg-fortis-surface transition-colors"
                                                                 onClick={async () => {
-                                                                    const newActions = [...(selectedTask.lead!.commercialActionIds || []), action.id];
-                                                                    const updatedLead = { ...selectedTask.lead!, commercialActionIds: newActions };
-                                                                    setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
-                                                                    setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
-                                                                    await updateLead(selectedTask.lead!.id, { commercialActionIds: newActions });
-                                                                    setActionSearch('');
-                                                                    setShowActionSuggestions(false);
+                                                                    if (!selectedTask.lead!.tags?.includes(tag.label)) {
+                                                                        const newTags = [...(selectedTask.lead!.tags || []), tag.label];
+                                                                        const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                        setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                        setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                        await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                    }
+                                                                    setTagSearch('');
+                                                                    setShowTagSuggestions(false);
                                                                 }}
                                                             >
-                                                                <span className="font-bold text-white">{action.name}</span>
-                                                                <span className="text-fortis-mid mt-0.5 text-[10px]">
-                                                                    {new Date(action.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(action.end_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                                                                </span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                                    <span className="font-semibold">{tag.label}</span>
+                                                                </div>
+                                                                {selectedTask.lead!.tags?.includes(tag.label) && <Check size={14} className="text-fortis-brand" />}
                                                             </button>
                                                         ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="border-t border-fortis-surface/50 pt-3">
-                                    <h3 className="text-sm font-bold text-fortis-mid uppercase tracking-wider mb-3">Tags</h3>
-                                    <div className="relative">
-                                        <div className="bg-fortis-panel border border-fortis-surface rounded-lg p-2 min-h-[42px] focus-within:border-fortis-brand transition-colors">
-                                            <div className="flex flex-wrap gap-2">
-                                                {selectedTask.lead.tags?.map((tagLabel: string) => {
-                                                    const tagConfig = availableTags.find(t => t.label === tagLabel);
-                                                    return (
-                                                        <span
-                                                            key={tagLabel}
-                                                            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm"
-                                                            style={{ backgroundColor: tagConfig?.color || '#575756' }}
-                                                        >
-                                                            {tagLabel}
+                                                        {tagSearch && !availableTags.some(t => t.label.toLowerCase() === tagSearch.toLowerCase()) && (
                                                             <button
                                                                 type="button"
+                                                                className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-xs hover:bg-fortis-surface text-fortis-brand transition-colors font-bold"
                                                                 onClick={async () => {
-                                                                    const newTags = (selectedTask.lead!.tags || []).filter(t => t !== tagLabel);
-                                                                    const updatedLead = { ...selectedTask.lead!, tags: newTags };
-                                                                    setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
-                                                                    setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
-                                                                    await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                    const newTagLabel = tagSearch.trim();
+                                                                    if (!selectedTask.lead!.tags?.includes(newTagLabel)) {
+                                                                        const newTags = [...(selectedTask.lead!.tags || []), newTagLabel];
+                                                                        const updatedLead = { ...selectedTask.lead!, tags: newTags };
+                                                                        setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
+                                                                        setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
+                                                                        await updateLead(selectedTask.lead!.id, { tags: newTags });
+                                                                        if (!availableTags.some(t => t.label.toLowerCase() === newTagLabel.toLowerCase())) {
+                                                                            await addTag(newTagLabel);
+                                                                        }
+                                                                    }
+                                                                    setTagSearch('');
+                                                                    setShowTagSuggestions(false);
                                                                 }}
-                                                                className="hover:bg-black/20 rounded-full p-0.5"
                                                             >
-                                                                <X size={10} />
+                                                                <Plus size={14} />
+                                                                Criar "{tagSearch}"
                                                             </button>
-                                                        </span>
-                                                    );
-                                                })}
-                                                <input
-                                                    type="text"
-                                                    placeholder="Pesquise ou adicione..."
-                                                    className="bg-transparent border-none outline-none text-xs text-white placeholder:text-fortis-mid flex-1 min-w-[100px]"
-                                                    value={tagSearch}
-                                                    onChange={(e) => {
-                                                        setTagSearch(e.target.value);
-                                                        setShowTagSuggestions(true);
-                                                    }}
-                                                    onFocus={() => setShowTagSuggestions(true)}
-                                                    onKeyDown={async (e) => {
-                                                        if (e.key === 'Enter' && tagSearch.trim()) {
-                                                            e.preventDefault();
-                                                            const newTag = tagSearch.trim();
-                                                            if (!selectedTask.lead!.tags?.includes(newTag)) {
-                                                                const newTags = [...(selectedTask.lead!.tags || []), newTag];
-                                                                const updatedLead = { ...selectedTask.lead!, tags: newTags };
-                                                                setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
-                                                                setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
-                                                                await updateLead(selectedTask.lead!.id, { tags: newTags });
-                                                                if (!availableTags.some(t => t.label.toLowerCase() === newTag.toLowerCase())) {
-                                                                    await addTag(newTag);
-                                                                }
-                                                            }
-                                                            setTagSearch('');
-                                                            setShowTagSuggestions(false);
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {showTagSuggestions && (tagSearch || availableTags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase())).length > 0) && (
-                                            <div className="absolute z-[60] left-0 right-0 mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
-                                                {availableTags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => (
-                                                    <button
-                                                        key={tag.id}
-                                                        type="button"
-                                                        className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs hover:bg-fortis-surface transition-colors"
-                                                        onClick={async () => {
-                                                            if (!selectedTask.lead!.tags?.includes(tag.label)) {
-                                                                const newTags = [...(selectedTask.lead!.tags || []), tag.label];
-                                                                const updatedLead = { ...selectedTask.lead!, tags: newTags };
-                                                                setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
-                                                                setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
-                                                                await updateLead(selectedTask.lead!.id, { tags: newTags });
-                                                            }
-                                                            setTagSearch('');
-                                                            setShowTagSuggestions(false);
-                                                        }}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                                                            <span className="font-semibold">{tag.label}</span>
-                                                        </div>
-                                                        {selectedTask.lead!.tags?.includes(tag.label) && <Check size={14} className="text-fortis-brand" />}
-                                                    </button>
-                                                ))}
-                                                {tagSearch && !availableTags.some(t => t.label.toLowerCase() === tagSearch.toLowerCase()) && (
-                                                    <button
-                                                        type="button"
-                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-xs hover:bg-fortis-surface text-fortis-brand transition-colors font-bold"
-                                                        onClick={async () => {
-                                                            const newTagLabel = tagSearch.trim();
-                                                            if (!selectedTask.lead!.tags?.includes(newTagLabel)) {
-                                                                const newTags = [...(selectedTask.lead!.tags || []), newTagLabel];
-                                                                const updatedLead = { ...selectedTask.lead!, tags: newTags };
-                                                                setSelectedTask(prev => prev ? { ...prev, lead: updatedLead } : null);
-                                                                setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, lead: updatedLead } : t));
-                                                                await updateLead(selectedTask.lead!.id, { tags: newTags });
-                                                                if (!availableTags.some(t => t.label.toLowerCase() === newTagLabel.toLowerCase())) {
-                                                                    await addTag(newTagLabel);
-                                                                }
-                                                            }
-                                                            setTagSearch('');
-                                                            setShowTagSuggestions(false);
-                                                        }}
-                                                    >
-                                                        <Plus size={14} />
-                                                        Criar "{tagSearch}"
-                                                    </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {showTagSuggestions && (
+                                                    <div className="fixed inset-0 z-[55]" onClick={() => setShowTagSuggestions(false)} />
                                                 )}
                                             </div>
-                                        )}
-                                        {showTagSuggestions && (
-                                            <div className="fixed inset-0 z-[55]" onClick={() => setShowTagSuggestions(false)} />
-                                        )}
-                                    </div>
-                                </div>
-
-                                {flow?.stages?.find(s => s.id === selectedTask.stageId)?.instructions && (
-                                    <div className="border-t border-fortis-surface/50 pt-4">
-                                        <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 animate-pulse-subtle">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Clock size={14} className="text-cyan-400" />
-                                                <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest">Instruções desta Etapa</h3>
-                                            </div>
-                                            <p className="text-sm text-white/90 leading-relaxed italic">
-                                                "{flow.stages.find(s => s.id === selectedTask.stageId)?.instructions}"
-                                            </p>
                                         </div>
+
+                                        {flow?.stages?.find(s => s.id === selectedTask.stageId)?.instructions && (
+                                            <div className="border-t border-fortis-surface/50 pt-4">
+                                                <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 animate-pulse-subtle">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Clock size={14} className="text-cyan-400" />
+                                                        <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest">Instruções desta Etapa</h3>
+                                                    </div>
+                                                    <p className="text-sm text-white/90 leading-relaxed italic">
+                                                        "{flow.stages.find(s => s.id === selectedTask.stageId)?.instructions}"
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
                                 </div>
                             )}
                             {activeDetailTab === 'history' && (
                                 <div className="animate-in fade-in duration-300 flex-1 flex flex-col min-h-0">
                                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4">
-                                    {loadingHistory ? (
-                                        <div className="text-center py-12 flex flex-col items-center">
-                                            <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
-                                            <p className="text-fortis-mid text-[10px] font-black uppercase tracking-widest">Buscando histórico...</p>
-                                        </div>
-                                    ) : history.length === 0 ? (
-                                        <div className="text-center py-12 flex flex-col items-center">
-                                            <div className="p-5 bg-fortis-panel/20 rounded-full mb-6">
-                                                <History size={40} className="text-fortis-surface/40" />
+                                        {loadingHistory ? (
+                                            <div className="text-center py-12 flex flex-col items-center">
+                                                <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                                <p className="text-fortis-mid text-[10px] font-black uppercase tracking-widest">Buscando histórico...</p>
                                             </div>
-                                            <p className="text-fortis-mid text-sm font-black uppercase tracking-widest">Sem registros recentes</p>
-                                        </div>
-                                    ) : (
-                                        <div className="relative pl-10">
-                                            <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-fortis-surface z-0" />
+                                        ) : history.length === 0 ? (
+                                            <div className="text-center py-12 flex flex-col items-center">
+                                                <div className="p-5 bg-fortis-panel/20 rounded-full mb-6">
+                                                    <History size={40} className="text-fortis-surface/40" />
+                                                </div>
+                                                <p className="text-fortis-mid text-sm font-black uppercase tracking-widest">Sem registros recentes</p>
+                                            </div>
+                                        ) : (
+                                            <div className="relative pl-10">
+                                                <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-fortis-surface z-0" />
 
-                                            <div className="space-y-12 pt-2">
-                                                {history.map((item: any) => {
-                                                let statusColor = '#FFFFFF';
-                                                if (item.field === 'status' && item.newValue) {
-                                                    const statusKey = Object.keys(LEAD_STATUS_MAP).find(
-                                                        k => LEAD_STATUS_MAP[k as LeadStatus].label === item.newValue
-                                                    ) as LeadStatus;
-                                                    if (statusKey) statusColor = LEAD_STATUS_MAP[statusKey].color;
-                                                }
+                                                <div className="space-y-12 pt-2">
+                                                    {history.map((item: any) => {
+                                                        let statusColor = '#FFFFFF';
+                                                        if (item.field === 'status' && item.newValue) {
+                                                            const statusKey = Object.keys(LEAD_STATUS_MAP).find(
+                                                                k => LEAD_STATUS_MAP[k as LeadStatus].label === item.newValue
+                                                            ) as LeadStatus;
+                                                            if (statusKey) statusColor = LEAD_STATUS_MAP[statusKey].color;
+                                                        }
 
-                                                return (
-                                                    <div key={item.id} className="relative group">
-                                                        <div
-                                                            className={`absolute -left-[27px] top-[4px] w-3.5 h-3.5 rounded-full ring-[4px] ring-black z-20 transition-transform group-hover:scale-125 ${item.type === 'SALE' ? 'bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]' : 'bg-white'
-                                                                }`}
-                                                        />
+                                                        return (
+                                                            <div key={item.id} className="relative group">
+                                                                <div
+                                                                    className={`absolute -left-[27px] top-[4px] w-3.5 h-3.5 rounded-full ring-[4px] ring-black z-20 transition-transform group-hover:scale-125 ${item.type === 'SALE' ? 'bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]' : 'bg-white'
+                                                                        }`}
+                                                                />
 
-                                                        <div className="flex flex-col gap-4">
-                                                            <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 shadow-2xl group-hover:border-cyan-500/40 transition-all">
-                                                                {item.type === 'EDIT' && item.oldValue !== undefined && item.newValue !== undefined ? (
-                                                                    <div className="flex items-center gap-4">
-                                                                        <span className="text-xs font-bold text-white/40 line-through truncate max-w-[150px]">{item.oldValue}</span>
-                                                                        <ArrowRight size={16} className="text-cyan-500 shrink-0" />
-                                                                        <span
-                                                                            className="text-xs font-black px-3 py-1 rounded-xl uppercase tracking-widest border shadow-sm"
-                                                                            style={{
-                                                                                color: statusColor,
-                                                                                borderColor: `${statusColor}40`,
-                                                                                backgroundColor: `${statusColor}15`
-                                                                            }}
-                                                                        >
-                                                                            {item.newValue}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : item.type === 'NOTE' ? (
-                                                                    editingNoteId === item.id ? (
-                                                                        <div className="flex flex-col gap-3">
-                                                                            <textarea
-                                                                                className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-500 transition-all resize-none h-24"
-                                                                                value={editingNoteContent}
-                                                                                onChange={(e) => setEditingNoteContent(e.target.value)}
-                                                                            />
-                                                                            <div className="flex justify-end gap-2">
-                                                                                <button
-                                                                                    onClick={() => setEditingNoteId(null)}
-                                                                                    className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
+                                                                <div className="flex flex-col gap-4">
+                                                                    <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 shadow-2xl group-hover:border-cyan-500/40 transition-all">
+                                                                        {item.type === 'EDIT' && item.oldValue !== undefined && item.newValue !== undefined ? (
+                                                                            <div className="flex items-center gap-4">
+                                                                                <span className="text-xs font-bold text-white/40 line-through truncate max-w-[150px]">{item.oldValue}</span>
+                                                                                <ArrowRight size={16} className="text-cyan-500 shrink-0" />
+                                                                                <span
+                                                                                    className="text-xs font-black px-3 py-1 rounded-xl uppercase tracking-widest border shadow-sm"
+                                                                                    style={{
+                                                                                        color: statusColor,
+                                                                                        borderColor: `${statusColor}40`,
+                                                                                        backgroundColor: `${statusColor}15`
+                                                                                    }}
                                                                                 >
-                                                                                    Cancelar
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => handleSaveEditNote(item.id)}
-                                                                                    className="px-4 py-2 bg-cyan-500 text-white text-xs font-bold rounded-lg hover:bg-cyan-600 transition-colors"
-                                                                                >
-                                                                                    Salvar
-                                                                                </button>
+                                                                                    {item.newValue}
+                                                                                </span>
                                                                             </div>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="flex justify-between items-start gap-4">
-                                                                            <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
+                                                                        ) : item.type === 'NOTE' ? (
+                                                                            editingNoteId === item.id ? (
+                                                                                <div className="flex flex-col gap-3">
+                                                                                    <textarea
+                                                                                        className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-500 transition-all resize-none h-24"
+                                                                                        value={editingNoteContent}
+                                                                                        onChange={(e) => setEditingNoteContent(e.target.value)}
+                                                                                    />
+                                                                                    <div className="flex justify-end gap-2">
+                                                                                        <button
+                                                                                            onClick={() => setEditingNoteId(null)}
+                                                                                            className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
+                                                                                        >
+                                                                                            Cancelar
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => handleSaveEditNote(item.id)}
+                                                                                            className="px-4 py-2 bg-cyan-500 text-white text-xs font-bold rounded-lg hover:bg-cyan-600 transition-colors"
+                                                                                        >
+                                                                                            Salvar
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="flex justify-between items-start gap-4">
+                                                                                    <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
+                                                                                        {item.description}
+                                                                                    </p>
+                                                                                    {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
+                                                                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    setEditingNoteId(item.id);
+                                                                                                    setEditingNoteContent(item.description);
+                                                                                                }}
+                                                                                                className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-cyan-400 transition-colors"
+                                                                                                title="Editar"
+                                                                                            >
+                                                                                                <Edit2 size={14} />
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleDeleteNote(item.id)}
+                                                                                                className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
+                                                                                                title="Excluir"
+                                                                                            >
+                                                                                                <Trash2 size={14} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )
+                                                                        ) : (
+                                                                            <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
                                                                                 {item.description}
                                                                             </p>
-                                                                            {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
-                                                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                                                    <button
-                                                                                        onClick={() => {
-                                                                                            setEditingNoteId(item.id);
-                                                                                            setEditingNoteContent(item.description);
-                                                                                        }}
-                                                                                        className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-cyan-400 transition-colors"
-                                                                                        title="Editar"
-                                                                                    >
-                                                                                        <Edit2 size={14} />
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => handleDeleteNote(item.id)}
-                                                                                        className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
-                                                                                        title="Excluir"
-                                                                                    >
-                                                                                        <Trash2 size={14} />
-                                                                                    </button>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    )
-                                                                ) : (
-                                                                    <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
-                                                                        {item.description}
-                                                                    </p>
-                                                                )}
-                                                            </div>
+                                                                        )}
+                                                                    </div>
 
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
-                                                                    <CalendarIcon size={13} className="text-blue-400" />
-                                                                    {new Date(item.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })}
-                                                                </div>
-                                                                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
-                                                                    <User size={13} className="text-emerald-400" />
-                                                                    {item.type === 'SALE' ? 'Sistema' : (users.find(u => u.id === item.userId)?.name || 'Sistema').split(' ')[0]}
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                                                                            <CalendarIcon size={13} className="text-blue-400" />
+                                                                            {new Date(item.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                                                                            <User size={13} className="text-emerald-400" />
+                                                                            {item.type === 'SALE' ? 'Sistema' : (users.find(u => u.id === item.userId)?.name || 'Sistema').split(' ')[0]}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
                                     </div>
-                                    
+
                                     {/* Registrar Atividade */}
                                     <div className="shrink-0 pt-4 border-t border-fortis-surface/50 mt-2">
                                         <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 focus-within:border-cyan-500/50 transition-all shadow-inner space-y-3">
