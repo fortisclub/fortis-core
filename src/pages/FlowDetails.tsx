@@ -43,6 +43,7 @@ export const FlowDetails: React.FC = () => {
     const [filterName, setFilterName] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterResponsible, setFilterResponsible] = useState('');
+    const [filterOverdue, setFilterOverdue] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
 
     const [tagSearch, setTagSearch] = useState('');
@@ -95,10 +96,19 @@ export const FlowDetails: React.FC = () => {
         }
         // Responsible filter
         if (filterResponsible && t.lead?.responsibleId !== filterResponsible) return false;
+        // Date related filters
+        const d = t.dueDate ? t.dueDate.split('T')[0] : null;
+
+        // Overdue filter
+        if (filterOverdue) {
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            if (!d || d >= today) return false;
+        }
+
         // Period filter on dueDate
         if (filterPeriod !== 'all') {
             const { start, end } = getPeriodRange();
-            const d = t.dueDate ? t.dueDate.split('T')[0] : null;
             if (!d) return false;
             if (start && d < start) return false;
             if (end && d > end) return false;
@@ -106,7 +116,7 @@ export const FlowDetails: React.FC = () => {
         return true;
     });
 
-    const hasActiveFilters = filterPeriod !== 'all' || filterName !== '' || filterStatus !== '' || filterResponsible !== '';
+    const hasActiveFilters = filterPeriod !== 'all' || filterName !== '' || filterStatus !== '' || filterResponsible !== '' || filterOverdue;
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedLeadId, setSelectedLeadId] = useState('');
     const [selectedDueDate, setSelectedDueDate] = useState('');
@@ -521,9 +531,13 @@ export const FlowDetails: React.FC = () => {
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        const tasksAtrasadas = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] < today);
+        const tasksAtrasadas = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] < today).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
         const tasksHoje = filteredTasks.filter(t => t.dueDate && t.dueDate.split('T')[0] === today);
-        const tasksAVencer = filteredTasks.filter(t => !t.dueDate || t.dueDate.split('T')[0] > today);
+        const tasksAVencer = filteredTasks.filter(t => !t.dueDate || t.dueDate.split('T')[0] > today).sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return a.dueDate.localeCompare(b.dueDate);
+        });
 
         return (
             <div className="bg-[#040608] min-h-full rounded-2xl p-4 space-y-6 animate-in fade-in duration-300">
@@ -722,7 +736,14 @@ export const FlowDetails: React.FC = () => {
                         </div>
                         <div className="flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar">
                             {filteredTasks.filter(t => t.stageId === stage.id).length > 0 ? (
-                                filteredTasks.filter(t => t.stageId === stage.id).map(task => {
+                                filteredTasks
+                                    .filter(t => t.stageId === stage.id)
+                                    .sort((a, b) => {
+                                        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+                                        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+                                        return dateA - dateB; // Mais antigo para o mais recente
+                                    })
+                                    .map(task => {
                                     const lead = task.lead;
                                     if (!lead) return null;
                                     return (
@@ -991,7 +1012,7 @@ export const FlowDetails: React.FC = () => {
 
                     {/* ─── Painel de filtros colapsável ─────────────────────────── */}
                     {showFilters && (
-                        <div className="bg-fortis-panel/50 border border-fortis-surface p-6 rounded-2xl grid grid-cols-4 gap-4 animate-in slide-in-from-top-4 duration-300 mt-4">
+                        <div className="bg-fortis-panel/50 border border-fortis-surface p-6 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-in slide-in-from-top-4 duration-300 mt-4">
                             {/* Período */}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Período</label>
@@ -1051,6 +1072,21 @@ export const FlowDetails: React.FC = () => {
                                 </select>
                             </div>
 
+                            {/* Atrasados */}
+                            <div className="flex items-end pb-2">
+                                <label className="flex items-center gap-3 cursor-pointer group select-none">
+                                    <div 
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setFilterOverdue(!filterOverdue);
+                                        }}
+                                        className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filterOverdue ? 'bg-red-500 border-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-fortis-dark border-fortis-surface group-hover:border-fortis-mid'}`}
+                                    >
+                                        {filterOverdue && <Check size={14} className="text-white stroke-[3]" />}
+                                    </div>
+                                    <span className={`text-xs font-bold transition-colors ${filterOverdue ? 'text-white' : 'text-fortis-mid group-hover:text-white'}`}>Apenas atrasados</span>
+                                </label>
+                            </div>
                         </div>
                     )}
                 </div>
