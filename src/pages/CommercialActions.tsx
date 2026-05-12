@@ -18,6 +18,13 @@ const ACTION_OPTIONS = [
   { value: 'frete_rapido', label: 'Frete Rápido', color: 'bg-yellow-500/20 text-yellow-500' },
   { value: 'combos', label: 'combos', color: 'bg-gray-500/20 text-gray-400' },
   { value: 'preco_unico', label: 'PREÇO ÚNICO', color: 'bg-red-500/20 text-red-500' },
+  { value: 'lancamento_novidade', label: 'Lançamento/novidade', color: 'bg-emerald-500/20 text-emerald-500' },
+  { value: 'cashback', label: 'Cashback', color: 'bg-indigo-500/20 text-indigo-500' },
+  { value: 'indique_ganhe', label: 'Indique e ganhe', color: 'bg-pink-500/20 text-pink-500' },
+  { value: 'acesso_vip', label: 'Acesso antecipado VIP', color: 'bg-amber-500/20 text-amber-500' },
+  { value: 'frete_gratis_progressivo', label: 'Frete grátis progressivo', color: 'bg-orange-500/20 text-orange-500' },
+  { value: 'acao_madrugada', label: 'Ação da madrugada', color: 'bg-violet-500/20 text-violet-500' },
+  { value: 'desconto_relampago', label: 'Desconto relâmpago', color: 'bg-rose-500/20 text-rose-500' },
 ];
 
 const ACTION_COLORS = [
