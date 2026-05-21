@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Settings2, Trash2, Workflow, Clock, ExternalLink, GripVertical, X, ArrowRight, ArrowLeft, Calendar, AlertTriangle } from 'lucide-react';
+import { Plus, Settings2, Trash2, Workflow, Clock, ExternalLink, GripVertical, X, ArrowRight, ArrowLeft, Calendar, AlertTriangle, Target, ChevronDown, ChevronRight } from 'lucide-react';
 import { useApp } from '../store';
 import { CadenceFlow, CadenceStage } from '../types';
 import { supabase } from '../lib/supabase';
@@ -18,6 +18,10 @@ export const Flows: React.FC = () => {
     const [draggedStageIdx, setDraggedStageIdx] = useState<number | null>(null);
     const [todayTasksCounts, setTodayTasksCounts] = useState<Record<string, number>>({});
     const [overdueTasksCounts, setOverdueTasksCounts] = useState<Record<string, number>>({});
+    const [activeTab, setActiveTab] = useState<'overview' | 'flows'>('overview');
+    const [pendingTasksDetails, setPendingTasksDetails] = useState<any[]>([]);
+    const [overdueOpen, setOverdueOpen] = useState(true);
+    const [todayOpen, setTodayOpen] = useState(true);
 
     useEffect(() => {
         if (activeModal === 'CADENCE_FLOW' && !isInternalModalOpen) {
@@ -26,19 +30,20 @@ export const Flows: React.FC = () => {
     }, [activeModal]);
 
     useEffect(() => {
-        fetchTasksStats();
+        fetchTasksData();
     }, [flows]);
 
-    const fetchTasksStats = async () => {
+    const fetchTasksData = async () => {
         const todayStr = new Date().toISOString().split('T')[0];
         const { data, error } = await supabase
             .from('cadence_tasks')
-            .select('flow_id, due_date')
+            .select('id, flow_id, stage_id, due_date, lead:lead_id(name, phone, email)')
             .eq('completed', false);
 
         if (!error && data) {
             const todayCounts: Record<string, number> = {};
             const overdueCounts: Record<string, number> = {};
+            const pendingDetails: any[] = [];
 
             data.forEach((task: any) => {
                 if (!task.due_date) return;
@@ -46,13 +51,18 @@ export const Flows: React.FC = () => {
                 const taskDate = task.due_date.split('T')[0];
                 if (taskDate === todayStr) {
                     todayCounts[task.flow_id] = (todayCounts[task.flow_id] || 0) + 1;
+                    pendingDetails.push(task);
                 } else if (taskDate < todayStr) {
                     overdueCounts[task.flow_id] = (overdueCounts[task.flow_id] || 0) + 1;
+                    pendingDetails.push(task);
                 }
             });
 
+            pendingDetails.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
             setTodayTasksCounts(todayCounts);
             setOverdueTasksCounts(overdueCounts);
+            setPendingTasksDetails(pendingDetails);
         }
     };
 
@@ -183,90 +193,280 @@ export const Flows: React.FC = () => {
 
 
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        {flows.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                                <div className="w-20 h-20 bg-fortis-surface/30 rounded-full flex items-center justify-center mb-4">
-                                    <Workflow size={40} className="text-fortis-mid/50" />
-                                </div>
-                                <h3 className="text-xl font-bold text-white mb-2">Nenhum fluxo cadastrado</h3>
-                                <p className="text-fortis-mid max-w-sm">
-                                    Crie seu primeiro fluxo de cadência para começar a automatizar e padronizar o acompanhamento dos seus contatos.
-                                </p>
-                                <button
-                                    onClick={() => handleOpenModal()}
-                                    className="mt-6 px-6 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors"
-                                >
-                                    Criar Fluxo
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {flows.map(flow => (
-                                    <div
-                                        key={flow.id}
-                                        onClick={() => navigate(`/fluxos/${flow.id}`)}
-                                        className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6 hover:border-fortis-brand/50 transition-all cursor-pointer group flex flex-col relative overflow-hidden shadow-sm hover:shadow-xl"
-                                    >
-                                        <div className="absolute top-0 left-0 w-1 h-full bg-fortis-brand opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex gap-4 border-b border-fortis-surface">
+                            <button
+                                onClick={() => setActiveTab('overview')}
+                                className={`pb-4 px-2 text-sm font-bold border-b-2 transition-colors ${
+                                    activeTab === 'overview'
+                                        ? 'border-fortis-brand text-white'
+                                        : 'border-transparent text-fortis-mid hover:text-white'
+                                }`}
+                            >
+                                Visão Geral
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('flows')}
+                                className={`pb-4 px-2 text-sm font-bold border-b-2 transition-colors ${
+                                    activeTab === 'flows'
+                                        ? 'border-fortis-brand text-white'
+                                        : 'border-transparent text-fortis-mid hover:text-white'
+                                }`}
+                            >
+                                Meus Fluxos
+                            </button>
+                        </div>
 
-                                        <div className="flex items-start justify-between mb-2">
-                                            <h3 className="font-bold text-base text-white group-hover:text-fortis-brand transition-colors">
-                                                {flow.name}
-                                            </h3>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleOpenModal(flow); }}
-                                                    className="p-1.5 text-fortis-mid hover:text-white bg-fortis-surface/50 hover:bg-fortis-surface rounded-lg transition-colors"
-                                                    title="Editar Fluxo"
-                                                >
-                                                    <Settings2 size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => handleDelete(flow.id, e)}
-                                                    className="p-1.5 text-fortis-mid hover:text-red-400 bg-fortis-dark/50 hover:bg-red-500/10 rounded-lg transition-colors border border-fortis-surface/30"
-                                                    title="Excluir Fluxo"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {activeTab === 'overview' ? (
+                                <div className="space-y-6">
+                                    {/* Insights */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6 flex flex-col gap-2 relative overflow-hidden">
+                                            <div className="absolute -right-6 -top-6 text-fortis-surface/30">
+                                                <Workflow size={100} />
                                             </div>
+                                            <p className="text-sm font-bold text-fortis-mid relative z-10">Total de Fluxos</p>
+                                            <p className="text-3xl font-black text-white relative z-10">{flows.length}</p>
                                         </div>
-
-                                        <p className="text-xs text-fortis-mid mb-5 flex-1 line-clamp-2 leading-relaxed">
-                                            {flow.description || 'Sem descrição cadastrada.'}
-                                        </p>
-
-                                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-fortis-surface/50">
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex items-center gap-2 text-[10px] text-fortis-mid font-black uppercase tracking-widest bg-fortis-dark/50 px-2 py-1 rounded-lg border border-fortis-surface/30 w-fit">
-                                                    <Clock size={12} className="text-fortis-mid/70" />
-                                                    {new Date(flow.createdAt).toLocaleDateString('pt-BR')}
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {todayTasksCounts[flow.id] > 0 && (
-                                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[9px] text-amber-500 font-black uppercase tracking-wider animate-pulse-subtle">
-                                                            <Calendar size={11} />
-                                                            {todayTasksCounts[flow.id]} Hoje
-                                                        </div>
-                                                    )}
-                                                    {overdueTasksCounts[flow.id] > 0 && (
-                                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500/5 border border-red-500/20 rounded-lg text-[9px] text-red-500 font-black uppercase tracking-wider shadow-[0_0_10px_rgba(239,68,68,0.1)]">
-                                                            <AlertTriangle size={11} />
-                                                            {overdueTasksCounts[flow.id]} Atrasada{overdueTasksCounts[flow.id] > 1 ? 's' : ''}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                        <div className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6 flex flex-col gap-2 relative overflow-hidden">
+                                            <div className="absolute -right-6 -top-6 text-amber-500/10">
+                                                <Calendar size={100} />
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-xs font-bold text-fortis-brand group-hover:translate-x-1 transition-transform">
-                                                <span className="uppercase tracking-widest text-[10px]">Abrir</span>
-                                                <ExternalLink size={14} />
+                                            <p className="text-sm font-bold text-amber-500 relative z-10">Tarefas para Hoje</p>
+                                            <p className="text-3xl font-black text-white relative z-10">
+                                                {Object.values(todayTasksCounts).reduce((a, b) => a + b, 0)}
+                                            </p>
+                                        </div>
+                                        <div className="bg-fortis-panel border border-red-500/30 rounded-xl p-6 flex flex-col gap-2 relative overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                                            <div className="absolute -right-6 -top-6 text-red-500/10">
+                                                <AlertTriangle size={100} />
                                             </div>
+                                            <p className="text-sm font-bold text-red-500 relative z-10">Tarefas Atrasadas</p>
+                                            <p className="text-3xl font-black text-white relative z-10">
+                                                {Object.values(overdueTasksCounts).reduce((a, b) => a + b, 0)}
+                                            </p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+
+                                    {/* Pending Tasks Accordions */}
+                                    <div className="space-y-4">
+                                        {/* Overdue Accordion */}
+                                        {(() => {
+                                            const todayStr = new Date().toISOString().split('T')[0];
+                                            const overdueTasks = pendingTasksDetails.filter(t => t.due_date && t.due_date.split('T')[0] < todayStr);
+                                            const todayTasks = pendingTasksDetails.filter(t => t.due_date && t.due_date.split('T')[0] === todayStr);
+
+                                            const renderTasksTable = (tasksList: any[]) => {
+                                                if (tasksList.length === 0) {
+                                                    return (
+                                                        <div className="text-center py-6 text-fortis-mid bg-fortis-dark/10 rounded-xl border border-fortis-surface/30">
+                                                            Nenhum lead pendente nesta categoria.
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div className="overflow-x-auto custom-scrollbar">
+                                                        <table className="w-full text-left border-collapse">
+                                                            <thead>
+                                                                <tr className="border-b border-fortis-surface/50 text-xs font-bold text-fortis-mid uppercase tracking-wider">
+                                                                    <th className="py-3 px-4 font-black">Lead</th>
+                                                                    <th className="py-3 px-4 font-black">Fluxo</th>
+                                                                    <th className="py-3 px-4 font-black">Etapa</th>
+                                                                    <th className="py-3 px-4 font-black">Prazo</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {tasksList.map((task) => {
+                                                                    const flow = flows.find(f => f.id === task.flow_id);
+                                                                    const stage = flow?.stages.find(s => s.id === task.stage_id);
+                                                                    const isOverdue = task.due_date.split('T')[0] < todayStr;
+                                                                    
+                                                                    return (
+                                                                        <tr 
+                                                                            key={task.id} 
+                                                                            onClick={() => navigate(`/fluxos/${task.flow_id}`)}
+                                                                            className="border-b border-fortis-surface/30 hover:bg-fortis-surface/30 transition-colors cursor-pointer group"
+                                                                        >
+                                                                            <td className="py-4 px-4">
+                                                                                <div className="flex flex-col">
+                                                                                    <span className="font-bold text-white group-hover:text-fortis-brand transition-colors">
+                                                                                        {task.lead?.name || 'Lead desconhecido'}
+                                                                                    </span>
+                                                                                    <span className="text-xs text-fortis-mid">{task.lead?.phone || task.lead?.email || ''}</span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="py-4 px-4 text-sm text-fortis-mid">{flow?.name || 'Fluxo desconhecido'}</td>
+                                                                            <td className="py-4 px-4">
+                                                                                <span className="text-xs font-bold bg-fortis-dark px-2 py-1 rounded-lg border border-fortis-surface/50 text-fortis-brand/80">
+                                                                                    {stage?.name || 'Etapa desconhecida'}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="py-4 px-4">
+                                                                                <div className={`flex items-center gap-1.5 text-xs font-bold ${isOverdue ? 'text-red-500' : 'text-amber-500'}`}>
+                                                                                    {isOverdue ? <AlertTriangle size={12} /> : <Calendar size={12} />}
+                                                                                    {new Date(task.due_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                );
+                                            };
+
+                                            if (pendingTasksDetails.length === 0) {
+                                                return (
+                                                    <div className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6">
+                                                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                                            <Target size={20} className="text-fortis-brand" /> Leads a abordar hoje
+                                                        </h3>
+                                                        <div className="text-center py-8 text-fortis-mid bg-fortis-dark/30 rounded-xl border border-fortis-surface/30">
+                                                            Não há leads com tarefas pendentes para hoje ou atrasadas.
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <>
+                                                    {/* Overdue Accordion Section */}
+                                                    <div className="bg-fortis-panel border border-fortis-surface/80 rounded-xl overflow-hidden">
+                                                        <button 
+                                                            onClick={() => setOverdueOpen(!overdueOpen)}
+                                                            className="w-full p-5 flex items-center justify-between text-left border-b border-fortis-surface/30 hover:bg-fortis-surface/20 transition-colors"
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <AlertTriangle size={20} className="text-red-500" />
+                                                                <div>
+                                                                    <span className="font-bold text-white text-base">Atrasados</span>
+                                                                    <span className="ml-2 text-xs font-black px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-500">
+                                                                        {overdueTasks.length}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            {overdueOpen ? <ChevronDown size={20} className="text-fortis-mid" /> : <ChevronRight size={20} className="text-fortis-mid" />}
+                                                        </button>
+                                                        {overdueOpen && (
+                                                            <div className="p-6">
+                                                                {renderTasksTable(overdueTasks)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Today Accordion Section */}
+                                                    <div className="bg-fortis-panel border border-fortis-surface/80 rounded-xl overflow-hidden">
+                                                        <button 
+                                                            onClick={() => setTodayOpen(!todayOpen)}
+                                                            className="w-full p-5 flex items-center justify-between text-left border-b border-fortis-surface/30 hover:bg-fortis-surface/20 transition-colors"
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <Calendar size={20} className="text-amber-500" />
+                                                                <div>
+                                                                    <span className="font-bold text-white text-base">Abordar hoje</span>
+                                                                    <span className="ml-2 text-xs font-black px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                                                                        {todayTasks.length}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            {todayOpen ? <ChevronDown size={20} className="text-fortis-mid" /> : <ChevronRight size={20} className="text-fortis-mid" />}
+                                                        </button>
+                                                        {todayOpen && (
+                                                            <div className="p-6">
+                                                                {renderTasksTable(todayTasks)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            ) : flows.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                                    <div className="w-20 h-20 bg-fortis-surface/30 rounded-full flex items-center justify-center mb-4">
+                                        <Workflow size={40} className="text-fortis-mid/50" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white mb-2">Nenhum fluxo cadastrado</h3>
+                                    <p className="text-fortis-mid max-w-sm">
+                                        Crie seu primeiro fluxo de cadência para começar a automatizar e padronizar o acompanhamento dos seus contatos.
+                                    </p>
+                                    <button
+                                        onClick={() => handleOpenModal()}
+                                        className="mt-6 px-6 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors"
+                                    >
+                                        Criar Fluxo
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {flows.map(flow => (
+                                        <div
+                                            key={flow.id}
+                                            onClick={() => navigate(`/fluxos/${flow.id}`)}
+                                            className="bg-fortis-panel border border-fortis-surface/80 rounded-xl p-6 hover:border-fortis-brand/50 transition-all cursor-pointer group flex flex-col relative overflow-hidden shadow-sm hover:shadow-xl"
+                                        >
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-fortis-brand opacity-0 group-hover:opacity-100 transition-opacity" />
+    
+                                            <div className="flex items-start justify-between mb-2">
+                                                <h3 className="font-bold text-base text-white group-hover:text-fortis-brand transition-colors">
+                                                    {flow.name}
+                                                </h3>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleOpenModal(flow); }}
+                                                        className="p-1.5 text-fortis-mid hover:text-white bg-fortis-surface/50 hover:bg-fortis-surface rounded-lg transition-colors"
+                                                        title="Editar Fluxo"
+                                                    >
+                                                        <Settings2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDelete(flow.id, e)}
+                                                        className="p-1.5 text-fortis-mid hover:text-red-400 bg-fortis-dark/50 hover:bg-red-500/10 rounded-lg transition-colors border border-fortis-surface/30"
+                                                        title="Excluir Fluxo"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+    
+                                            <p className="text-xs text-fortis-mid mb-5 flex-1 line-clamp-2 leading-relaxed">
+                                                {flow.description || 'Sem descrição cadastrada.'}
+                                            </p>
+    
+                                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-fortis-surface/50">
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="flex items-center gap-2 text-[10px] text-fortis-mid font-black uppercase tracking-widest bg-fortis-dark/50 px-2 py-1 rounded-lg border border-fortis-surface/30 w-fit">
+                                                        <Clock size={12} className="text-fortis-mid/70" />
+                                                        {new Date(flow.createdAt).toLocaleDateString('pt-BR')}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {todayTasksCounts[flow.id] > 0 && (
+                                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[9px] text-amber-500 font-black uppercase tracking-wider animate-pulse-subtle">
+                                                                <Calendar size={11} />
+                                                                {todayTasksCounts[flow.id]} Hoje
+                                                            </div>
+                                                        )}
+                                                        {overdueTasksCounts[flow.id] > 0 && (
+                                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500/5 border border-red-500/20 rounded-lg text-[9px] text-red-500 font-black uppercase tracking-wider shadow-[0_0_10px_rgba(239,68,68,0.1)]">
+                                                                <AlertTriangle size={11} />
+                                                                {overdueTasksCounts[flow.id]} Atrasada{overdueTasksCounts[flow.id] > 1 ? 's' : ''}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-xs font-bold text-fortis-brand group-hover:translate-x-1 transition-transform">
+                                                    <span className="uppercase tracking-widest text-[10px]">Abrir</span>
+                                                    <ExternalLink size={14} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                 </div>
             </div>
 

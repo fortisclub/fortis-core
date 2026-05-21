@@ -45,6 +45,8 @@ export const FlowDetails: React.FC = () => {
     const [filterResponsible, setFilterResponsible] = useState('');
     const [filterOverdue, setFilterOverdue] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
+    const [filterTags, setFilterTags] = useState<string[]>([]);
+    const [showTagFilter, setShowTagFilter] = useState(false);
 
     const [tagSearch, setTagSearch] = useState('');
     const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -96,6 +98,11 @@ export const FlowDetails: React.FC = () => {
         }
         // Responsible filter
         if (filterResponsible && t.lead?.responsibleId !== filterResponsible) return false;
+        // Tags filter
+        if (filterTags.length > 0) {
+            const leadTags = t.lead?.tags || [];
+            if (!filterTags.every(tag => leadTags.includes(tag))) return false;
+        }
         // Date related filters
         const d = t.dueDate ? t.dueDate.split('T')[0] : null;
 
@@ -116,7 +123,7 @@ export const FlowDetails: React.FC = () => {
         return true;
     });
 
-    const hasActiveFilters = filterPeriod !== 'all' || filterName !== '' || filterStatus !== '' || filterResponsible !== '' || filterOverdue;
+    const hasActiveFilters = filterPeriod !== 'all' || filterName !== '' || filterStatus !== '' || filterResponsible !== '' || filterOverdue || filterTags.length > 0;
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedLeadId, setSelectedLeadId] = useState('');
     const [selectedDueDate, setSelectedDueDate] = useState('');
@@ -1012,7 +1019,7 @@ export const FlowDetails: React.FC = () => {
 
                     {/* ─── Painel de filtros colapsável ─────────────────────────── */}
                     {showFilters && (
-                        <div className="bg-fortis-panel/50 border border-fortis-surface p-6 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-in slide-in-from-top-4 duration-300 mt-4">
+                        <div className="bg-fortis-panel/50 border border-fortis-surface p-6 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 animate-in slide-in-from-top-4 duration-300 mt-4">
                             {/* Período */}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Período</label>
@@ -1070,6 +1077,43 @@ export const FlowDetails: React.FC = () => {
                                         <option key={u.id} value={u.id}>{u.name}</option>
                                     ))}
                                 </select>
+                            </div>
+
+                            {/* Tags */}
+                            <div className="space-y-2 relative">
+                                <label className="text-[10px] font-bold text-fortis-mid uppercase tracking-widest">Tag's</label>
+                                <div
+                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-lg px-3 py-2 text-xs text-white font-bold cursor-pointer flex items-center justify-between"
+                                    onClick={() => setShowTagFilter(!showTagFilter)}
+                                >
+                                    <span className="truncate">{filterTags.length === 0 ? 'Todas as Tags' : `${filterTags.length} selecionada(s)`}</span>
+                                    <Filter size={12} className="text-fortis-mid" />
+                                </div>
+
+                                {showTagFilter && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowTagFilter(false)} />
+                                        <div className="absolute top-full left-0 w-full mt-2 bg-fortis-panel border border-fortis-surface rounded-xl shadow-2xl z-50 p-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                            {availableTags.map(tag => (
+                                                <div
+                                                    key={tag.id}
+                                                    onClick={() => {
+                                                        if (filterTags.includes(tag.label)) {
+                                                            setFilterTags(filterTags.filter(t => t !== tag.label));
+                                                        } else {
+                                                            setFilterTags([...filterTags, tag.label]);
+                                                        }
+                                                    }}
+                                                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${filterTags.includes(tag.label) ? 'bg-fortis-brand/20 text-fortis-brand' : 'hover:bg-fortis-surface text-fortis-mid'}`}
+                                                >
+                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                    <span className="text-[10px] font-bold uppercase">{tag.label}</span>
+                                                    {filterTags.includes(tag.label) && <X size={10} className="ml-auto" />}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Atrasados */}
