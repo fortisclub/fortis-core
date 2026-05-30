@@ -11,7 +11,7 @@ import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
 
 export const AfterSales: React.FC = () => {
-  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead, fetchLeadHistory, cadenceFlows, currentUser, editLeadNote, deleteLeadNote } = useApp();
+  const { leads, users, tags, addLeadNote, addLeadSale, hasMore, isLoadingMore, loadMore, globalStats, fetchAllClients, updateLead, deleteLead, fetchLeadHistory, cadenceFlows, currentUser, editLeadNote, deleteLeadNote } = useApp();
 
   // Estado para mapear leads aos seus fluxos de cadência ativos (ID e Nome)
   const [activeFlowsMap, setActiveFlowsMap] = useState<Record<string, { id: string, name: string }>>({});
@@ -73,6 +73,13 @@ export const AfterSales: React.FC = () => {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteContent, setEditingNoteContent] = useState('');
 
+  // Estados para seleção em massa
+  const [selectedLeadsIds, setSelectedLeadsIds] = useState<string[]>([]);
+  const [isBulkTagModalOpen, setIsBulkTagModalOpen] = useState(false);
+  const [isBulkOriginModalOpen, setIsBulkOriginModalOpen] = useState(false);
+  const [bulkOriginInput, setBulkOriginInput] = useState('');
+  const [bulkTagsInput, setBulkTagsInput] = useState<string[]>([]);
+
   // Carregar histórico apenas quando necessário
   React.useEffect(() => {
     if (selectedLeadId && activeDetailTab === 'history') {
@@ -122,7 +129,40 @@ export const AfterSales: React.FC = () => {
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
+    setSelectedLeadsIds([]);
   }, [localFilters]);
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Tem certeza que deseja excluir ${selectedLeadsIds.length} clientes?`)) return;
+    for (const id of selectedLeadsIds) {
+      await deleteLead(id);
+    }
+    setSelectedLeadsIds([]);
+  };
+
+  const handleBulkAddTags = async () => {
+    if (bulkTagsInput.length === 0) return;
+    for (const id of selectedLeadsIds) {
+      const lead = leads.find(l => l.id === id);
+      if (lead) {
+        const newTags = Array.from(new Set([...(lead.tags || []), ...bulkTagsInput]));
+        await updateLead(id, { tags: newTags });
+      }
+    }
+    setIsBulkTagModalOpen(false);
+    setBulkTagsInput([]);
+    setSelectedLeadsIds([]);
+  };
+
+  const handleBulkUpdateOrigin = async () => {
+    if (!bulkOriginInput.trim()) return;
+    for (const id of selectedLeadsIds) {
+      await updateLead(id, { origin: bulkOriginInput });
+    }
+    setIsBulkOriginModalOpen(false);
+    setBulkOriginInput('');
+    setSelectedLeadsIds([]);
+  };
 
   const handleRegisterEntry = async () => {
     if (!selectedLead || !manualNote.trim()) return;
@@ -490,6 +530,20 @@ export const AfterSales: React.FC = () => {
             <table className="w-full text-left table-fixed min-w-[1100px]">
               <thead className="bg-fortis-dark/50 sticky top-0 z-10">
                 <tr>
+                  <th className="px-6 py-4 w-[50px]">
+                    <div 
+                      onClick={() => {
+                        if (selectedLeadsIds.length === paginatedAfterSales.length) {
+                          setSelectedLeadsIds([]);
+                        } else {
+                          setSelectedLeadsIds(paginatedAfterSales.map(l => l.id));
+                        }
+                      }}
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${selectedLeadsIds.length === paginatedAfterSales.length && paginatedAfterSales.length > 0 ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface hover:border-fortis-mid'}`}
+                    >
+                      {selectedLeadsIds.length === paginatedAfterSales.length && paginatedAfterSales.length > 0 && <Check size={12} className="text-white" />}
+                    </div>
+                  </th>
                   <SortableTableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="w-[220px]" />
                   <SortableTableHeader label="Status" sortKey="afterSalesStatus" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
                   <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[180px]">
@@ -509,6 +563,20 @@ export const AfterSales: React.FC = () => {
                       className="hover:bg-fortis-surface/20 cursor-pointer transition-colors group"
                       onClick={() => setSelectedLeadId(client.id)}
                     >
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        <div 
+                          onClick={() => {
+                            if (selectedLeadsIds.includes(client.id)) {
+                              setSelectedLeadsIds(prev => prev.filter(id => id !== client.id));
+                            } else {
+                              setSelectedLeadsIds(prev => [...prev, client.id]);
+                            }
+                          }}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${selectedLeadsIds.includes(client.id) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface hover:border-fortis-mid'}`}
+                        >
+                          {selectedLeadsIds.includes(client.id) && <Check size={12} className="text-white" />}
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-white">{client.name}</span>
@@ -573,7 +641,7 @@ export const AfterSales: React.FC = () => {
                   ))}
                   {filteredAfterSales.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-fortis-mid">
+                      <td colSpan={9} className="px-6 py-12 text-center text-fortis-mid">
                         <div className="flex flex-col items-center gap-3">
                           <Search size={32} className="opacity-20" />
                           <p className="text-sm font-bold opacity-50">Nenhum cliente encontrado</p>
@@ -614,6 +682,87 @@ export const AfterSales: React.FC = () => {
             totalItems={sortedAfterSales.length}
           />
       </div>
+
+      {selectedLeadsIds.length > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-fortis-panel border border-fortis-surface p-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-6 animate-in slide-in-from-bottom-8 duration-300">
+          <span className="text-sm font-black text-white">{selectedLeadsIds.length} selecionados</span>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsBulkTagModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-fortis-dark hover:bg-fortis-surface border border-fortis-surface rounded-xl text-xs font-bold text-white transition-all">
+              <TagsIcon size={14} /> Tag's
+            </button>
+            <button onClick={() => setIsBulkOriginModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-fortis-dark hover:bg-fortis-surface border border-fortis-surface rounded-xl text-xs font-bold text-white transition-all">
+              <Compass size={14} /> Origem
+            </button>
+            <button onClick={handleBulkDelete} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-xs font-bold transition-all">
+              <Trash2 size={14} /> Excluir
+            </button>
+            <button onClick={() => setSelectedLeadsIds([])} className="p-2 text-fortis-mid hover:text-white transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isBulkTagModalOpen && (
+        <div className="fixed inset-0 z-[4000] flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsBulkTagModalOpen(false)} />
+          <div className="relative bg-fortis-panel border border-fortis-surface rounded-2xl shadow-2xl p-6 w-[400px] animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-black text-white mb-4">Adicionar Tag's ({selectedLeadsIds.length} clientes)</h3>
+            <div className="space-y-2 max-h-[300px] overflow-auto custom-scrollbar mb-6">
+              {tags.map(tag => (
+                <div
+                  key={tag.id}
+                  onClick={() => {
+                    if (bulkTagsInput.includes(tag.label)) {
+                      setBulkTagsInput(prev => prev.filter(t => t !== tag.label));
+                    } else {
+                      setBulkTagsInput(prev => [...prev, tag.label]);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${bulkTagsInput.includes(tag.label) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.label}
+                  </div>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${bulkTagsInput.includes(tag.label) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                    {bulkTagsInput.includes(tag.label) && <Check size={12} className="text-white" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setIsBulkTagModalOpen(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-fortis-mid hover:text-white">Cancelar</button>
+              <button onClick={handleBulkAddTags} className="px-4 py-2 bg-fortis-brand text-white rounded-xl text-xs font-bold shadow-lg shadow-fortis-brand/20">Aplicar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBulkOriginModalOpen && (
+        <div className="fixed inset-0 z-[4000] flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsBulkOriginModalOpen(false)} />
+          <div className="relative bg-fortis-panel border border-fortis-surface rounded-2xl shadow-2xl p-6 w-[400px] animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-black text-white mb-4">Alterar Origem ({selectedLeadsIds.length} clientes)</h3>
+            <div className="space-y-4 mb-6">
+              <select
+                value={bulkOriginInput}
+                onChange={(e) => setBulkOriginInput(e.target.value)}
+                className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white font-bold outline-none focus:border-fortis-brand"
+              >
+                <option value="">Selecione uma origem...</option>
+                {availableOrigins.map(o => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setIsBulkOriginModalOpen(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-fortis-mid hover:text-white">Cancelar</button>
+              <button onClick={handleBulkUpdateOrigin} disabled={!bulkOriginInput} className="px-4 py-2 bg-fortis-brand text-white rounded-xl text-xs font-bold shadow-lg shadow-fortis-brand/20 disabled:opacity-50 disabled:cursor-not-allowed">Aplicar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedLead && (
         <div className="fixed inset-0 z-[3001] flex justify-end">
