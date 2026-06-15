@@ -26,7 +26,7 @@ export const Dashboard: React.FC = () => {
 
       const [adsRes, leadsRes, purchasesRes] = await Promise.all([
         supabase.from('meta_ads').select('date, amount_spent').gte('date', startStr).limit(100000),
-        supabase.from('leads').select('created_at').eq('origin', 'Tráfego pago').gte('created_at', startStr).limit(100000),
+        supabase.from('leads').select('id, status, created_at').eq('origin', 'Tráfego pago').gte('created_at', startStr).limit(100000),
         supabase.from('lead_purchases').select('lead_id, value, date, status').in('status', PAID_PURCHASE_STATUSES).limit(100000)
       ]);
 
@@ -56,10 +56,15 @@ export const Dashboard: React.FC = () => {
           .reduce((sum, a) => sum + Number(a.amount_spent), 0);
 
         const leadsInMonth = paidLeads
-          .filter(l => new Date(fixTz(l.created_at)) >= mStart && new Date(fixTz(l.created_at)) <= mEnd)
-          .length;
+          .filter(l => {
+            const isMatch = new Date(fixTz(l.created_at)) >= mStart && new Date(fixTz(l.created_at)) <= mEnd;
+            if (!isMatch) return false;
+            return l.status !== 'PERDIDO' && l.status !== 'AGUARDANDO_PAGAMENTO';
+          });
 
-        const cac = leadsInMonth > 0 ? spentInMonth / leadsInMonth : 0;
+        const uniqueLeadsCount = new Set(leadsInMonth.map(l => l.id)).size;
+
+        const cac = uniqueLeadsCount > 0 ? spentInMonth / uniqueLeadsCount : 0;
 
         // Ticket Médio
         const monthPurchases = purchases

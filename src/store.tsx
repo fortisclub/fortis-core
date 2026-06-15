@@ -422,7 +422,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabase.from('lead_purchases').select('*').gte('date', pStartDateStr).lte('date', pEndDateStr).limit(10000),
       supabase.from('lead_purchases').select('lead_id, value, date, status, lead_origin').limit(100000), // GLOBAL
       supabase.rpc('get_meta_ads_investment'), // GLOBAL
-      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('origin', 'Tráfego pago'), // GLOBAL
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('origin', 'Tráfego pago').neq('status', 'PERDIDO').neq('status', 'AGUARDANDO_PAGAMENTO'), // GLOBAL
       supabase.from('leads').select('status, last_purchase_at, uf, channel').gte('last_purchase_at', startStr).lte('last_purchase_at', endStr), // PERIOD DATA (Purchases)
     ]);
 

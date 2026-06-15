@@ -172,7 +172,7 @@ export const AfterSales: React.FC = () => {
     // Re-busca o histórico imediatamente
     const updatedHistory = await fetchLeadHistory(selectedLead.id);
     setHistory(updatedHistory);
-    
+
     setTimeout(() => setActiveDetailTab('history'), 100);
   };
 
@@ -235,7 +235,7 @@ export const AfterSales: React.FC = () => {
 
         <div className="flex items-center gap-3 bg-fortis-panel border border-fortis-surface p-2 rounded-xl w-full shadow-lg relative min-h-[52px]">
           <Filter size={16} className="text-fortis-mid ml-2" />
-          
+
           <div className="flex flex-wrap items-center gap-2">
             {/* Active Filter Chips */}
             {localFilters.search !== '' && (
@@ -298,7 +298,7 @@ export const AfterSales: React.FC = () => {
 
           {/* Add Filter Button */}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setIsAddingFilter(!isAddingFilter)}
               className="px-3 py-1.5 rounded-lg text-fortis-mid hover:text-white hover:bg-white/5 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ml-2"
             >
@@ -375,7 +375,7 @@ export const AfterSales: React.FC = () => {
                       <div
                         key={key}
                         onClick={() => {
-                          const newList = localFilters.status.includes(key) 
+                          const newList = localFilters.status.includes(key)
                             ? localFilters.status.filter(v => v !== key)
                             : [...localFilters.status, key];
                           setLocalFilters({ ...localFilters, status: newList });
@@ -395,7 +395,7 @@ export const AfterSales: React.FC = () => {
                       <div
                         key={u.id}
                         onClick={() => {
-                          const newList = localFilters.responsibleId.includes(u.id) 
+                          const newList = localFilters.responsibleId.includes(u.id)
                             ? localFilters.responsibleId.filter(v => v !== u.id)
                             : [...localFilters.responsibleId, u.id];
                           setLocalFilters({ ...localFilters, responsibleId: newList });
@@ -415,7 +415,7 @@ export const AfterSales: React.FC = () => {
                       <div
                         key={f.id}
                         onClick={() => {
-                          const newList = localFilters.flowId.includes(f.id) 
+                          const newList = localFilters.flowId.includes(f.id)
                             ? localFilters.flowId.filter(v => v !== f.id)
                             : [...localFilters.flowId, f.id];
                           setLocalFilters({ ...localFilters, flowId: newList });
@@ -432,31 +432,31 @@ export const AfterSales: React.FC = () => {
                       </div>
                     ))}
                     {filterMenuOpen === 'tags' && tags.map(tag => (
-                       <div
-                         key={tag.id}
-                         onClick={() => {
-                           if (localFilters.tags.includes(tag.label)) {
-                             setLocalFilters({ ...localFilters, tags: localFilters.tags.filter(t => t !== tag.label) });
-                           } else {
-                             setLocalFilters({ ...localFilters, tags: [...localFilters.tags, tag.label] });
-                           }
-                         }}
-                         className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
-                       >
-                         <div className="flex items-center gap-3">
-                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                           {tag.label}
-                         </div>
-                         <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
-                           {localFilters.tags.includes(tag.label) && <Check size={12} className="text-white" />}
-                         </div>
-                       </div>
+                      <div
+                        key={tag.id}
+                        onClick={() => {
+                          if (localFilters.tags.includes(tag.label)) {
+                            setLocalFilters({ ...localFilters, tags: localFilters.tags.filter(t => t !== tag.label) });
+                          } else {
+                            setLocalFilters({ ...localFilters, tags: [...localFilters.tags, tag.label] });
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand/20 text-fortis-brand' : 'text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                          {tag.label}
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${localFilters.tags.includes(tag.label) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface'}`}>
+                          {localFilters.tags.includes(tag.label) && <Check size={12} className="text-white" />}
+                        </div>
+                      </div>
                     ))}
                     {filterMenuOpen === 'origem' && availableOrigins.map(o => (
                       <div
                         key={o}
                         onClick={() => {
-                          const newList = localFilters.origin.includes(o) 
+                          const newList = localFilters.origin.includes(o)
                             ? localFilters.origin.filter(v => v !== o)
                             : [...localFilters.origin, o];
                           setLocalFilters({ ...localFilters, origin: newList });
@@ -473,7 +473,7 @@ export const AfterSales: React.FC = () => {
                       <div
                         key={c}
                         onClick={() => {
-                          const newList = localFilters.channel.includes(c) 
+                          const newList = localFilters.channel.includes(c)
                             ? localFilters.channel.filter(v => v !== c)
                             : [...localFilters.channel, c];
                           setLocalFilters({ ...localFilters, channel: newList });
@@ -489,15 +489,15 @@ export const AfterSales: React.FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-fortis-surface mt-2 mr-0">
-                     {( (filterMenuOpen === 'tags' && localFilters.tags.length > 0) || 
-                        (filterMenuOpen === 'status' && localFilters.status.length > 0) || 
-                        (filterMenuOpen === 'resp' && localFilters.responsibleId.length > 0) || 
-                        (filterMenuOpen === 'fluxo' && localFilters.flowId.length > 0) ||
-                        (filterMenuOpen === 'origem' && localFilters.origin.length > 0) ||
-                        (filterMenuOpen === 'canal' && localFilters.channel.length > 0) ||
-                        (filterMenuOpen === 'cliente' && localFilters.search !== '')
-                      ) && (
-                        <button 
+                    {((filterMenuOpen === 'tags' && localFilters.tags.length > 0) ||
+                      (filterMenuOpen === 'status' && localFilters.status.length > 0) ||
+                      (filterMenuOpen === 'resp' && localFilters.responsibleId.length > 0) ||
+                      (filterMenuOpen === 'fluxo' && localFilters.flowId.length > 0) ||
+                      (filterMenuOpen === 'origem' && localFilters.origin.length > 0) ||
+                      (filterMenuOpen === 'canal' && localFilters.channel.length > 0) ||
+                      (filterMenuOpen === 'cliente' && localFilters.search !== '')
+                    ) && (
+                        <button
                           onClick={() => {
                             if (filterMenuOpen === 'tags') setLocalFilters({ ...localFilters, tags: [] });
                             else if (filterMenuOpen === 'status') setLocalFilters({ ...localFilters, status: [] });
@@ -511,13 +511,13 @@ export const AfterSales: React.FC = () => {
                         >
                           Limpar
                         </button>
-                     )}
-                     <button 
-                       onClick={() => setFilterMenuOpen(null)}
-                       className="px-6 py-2 bg-fortis-brand text-white rounded-xl text-[11px] font-black uppercase tracking-widest ml-auto"
-                     >
-                       Aplicar
-                     </button>
+                      )}
+                    <button
+                      onClick={() => setFilterMenuOpen(null)}
+                      className="px-6 py-2 bg-fortis-brand text-white rounded-xl text-[11px] font-black uppercase tracking-widest ml-auto"
+                    >
+                      Aplicar
+                    </button>
                   </div>
                 </div>
               </div>
@@ -526,161 +526,161 @@ export const AfterSales: React.FC = () => {
         </div>
 
 
-          <div className="flex-1 bg-fortis-panel border border-fortis-surface rounded-2xl overflow-auto shadow-xl custom-scrollbar min-h-0">
-            <table className="w-full text-left table-fixed min-w-[1100px]">
-              <thead className="bg-fortis-dark/50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-4 w-[50px]">
-                    <div 
+        <div className="flex-1 bg-fortis-panel border border-fortis-surface rounded-2xl overflow-auto shadow-xl custom-scrollbar min-h-0">
+          <table className="w-full text-left table-fixed min-w-[1100px]">
+            <thead className="bg-fortis-dark/50 sticky top-0 z-10">
+              <tr>
+                <th className="px-6 py-4 w-[50px]">
+                  <div
+                    onClick={() => {
+                      if (selectedLeadsIds.length === paginatedAfterSales.length) {
+                        setSelectedLeadsIds([]);
+                      } else {
+                        setSelectedLeadsIds(paginatedAfterSales.map(l => l.id));
+                      }
+                    }}
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${selectedLeadsIds.length === paginatedAfterSales.length && paginatedAfterSales.length > 0 ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface hover:border-fortis-mid'}`}
+                  >
+                    {selectedLeadsIds.length === paginatedAfterSales.length && paginatedAfterSales.length > 0 && <Check size={12} className="text-white" />}
+                  </div>
+                </th>
+                <SortableTableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="w-[220px]" />
+                <SortableTableHeader label="Status" sortKey="afterSalesStatus" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
+                <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[180px]">
+                  Fluxo
+                </th>
+                <SortableTableHeader label="Responsável" sortKey="responsibleId" sortConfig={sortConfig} requestSort={requestSort} className="w-[120px]" />
+                <SortableTableHeader label="Último Contato" sortKey="lastContactAt" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
+                <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[140px]">Tag's</th>
+                <SortableTableHeader label="Origem/Canal" sortKey="origin" sortConfig={sortConfig} requestSort={requestSort} className="w-[130px]" />
+                <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[80px] text-center">Pedidos</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-fortis-surface">
+              {paginatedAfterSales.map(client => (
+                <tr
+                  key={client.id}
+                  className="hover:bg-fortis-surface/20 cursor-pointer transition-colors group"
+                  onClick={() => setSelectedLeadId(client.id)}
+                >
+                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    <div
                       onClick={() => {
-                        if (selectedLeadsIds.length === paginatedAfterSales.length) {
-                          setSelectedLeadsIds([]);
+                        if (selectedLeadsIds.includes(client.id)) {
+                          setSelectedLeadsIds(prev => prev.filter(id => id !== client.id));
                         } else {
-                          setSelectedLeadsIds(paginatedAfterSales.map(l => l.id));
+                          setSelectedLeadsIds(prev => [...prev, client.id]);
                         }
                       }}
-                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${selectedLeadsIds.length === paginatedAfterSales.length && paginatedAfterSales.length > 0 ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface hover:border-fortis-mid'}`}
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${selectedLeadsIds.includes(client.id) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface hover:border-fortis-mid'}`}
                     >
-                      {selectedLeadsIds.length === paginatedAfterSales.length && paginatedAfterSales.length > 0 && <Check size={12} className="text-white" />}
+                      {selectedLeadsIds.includes(client.id) && <Check size={12} className="text-white" />}
                     </div>
-                  </th>
-                  <SortableTableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="w-[220px]" />
-                  <SortableTableHeader label="Status" sortKey="afterSalesStatus" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
-                  <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[180px]">
-                    Fluxo
-                  </th>
-                  <SortableTableHeader label="Responsável" sortKey="responsibleId" sortConfig={sortConfig} requestSort={requestSort} className="w-[120px]" />
-                  <SortableTableHeader label="Último Contato" sortKey="lastContactAt" sortConfig={sortConfig} requestSort={requestSort} className="w-[110px]" />
-                  <th className="px-4 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[140px]">Tag's</th>
-                  <SortableTableHeader label="Origem/Canal" sortKey="origin" sortConfig={sortConfig} requestSort={requestSort} className="w-[130px]" />
-                  <th className="px-6 py-4 text-xs font-black text-fortis-mid uppercase tracking-widest w-[80px] text-center">Pedidos</th>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white">{client.name}</span>
+                      <span className="text-[10px] text-fortis-mid font-semibold">{client.email}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full border font-black uppercase" style={{
+                      borderColor: AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color || '#575756',
+                      color: AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color || '#575756'
+                    }}>
+                      {(AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.label || client.afterSalesStatus || 'Sem Status')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    {activeFlowsMap[client.id] ? (
+                      <div className="flex items-center gap-1.5 bg-fortis-brand/10 border border-fortis-brand/20 rounded-lg px-2 py-1 w-fit">
+                        <Workflow size={11} className="text-fortis-brand shrink-0" />
+                        <span className="text-[9px] font-black text-fortis-brand uppercase leading-tight">
+                          {activeFlowsMap[client.id].name}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-fortis-mid/40">Nenhum fluxo</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <img src={users.find(u => u.id === client.responsibleId)?.avatar} className="w-5 h-5 rounded-full border border-fortis-surface" alt="" />
+                      <span className="text-xs font-bold text-white/90">{(users.find(u => u.id === client.responsibleId)?.name || 'Nenhum').split(' ')[0]}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-bold text-white/90">
+                      {client.lastContactAt ? new Date(client.lastContactAt).toLocaleDateString('pt-BR') : '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 overflow-hidden">
+                    <div className="flex flex-wrap gap-1">
+                      {(client.tags || []).map(tagLabel => {
+                        const tagConfig = tags.find(t => t.label === tagLabel);
+                        return (
+                          <span key={tagLabel} title={tagLabel} className="px-1.5 py-0.5 rounded text-[9px] font-black text-white shadow-sm uppercase max-w-full truncate inline-block align-bottom" style={{ backgroundColor: tagConfig?.color || '#575756' }}>
+                            {tagLabel}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-white/80 truncate">{client.origin}</span>
+                      <span className="text-[10px] text-fortis-mid font-medium truncate">{client.channel}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="text-xs font-bold text-white/80">
+                      {client.purchaseHistory && client.purchaseHistory.length > 0 ? client.purchaseHistory.length : '-'}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-                <tbody className="divide-y divide-fortis-surface">
-                  {paginatedAfterSales.map(client => (
-                    <tr
-                      key={client.id}
-                      className="hover:bg-fortis-surface/20 cursor-pointer transition-colors group"
-                      onClick={() => setSelectedLeadId(client.id)}
-                    >
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div 
-                          onClick={() => {
-                            if (selectedLeadsIds.includes(client.id)) {
-                              setSelectedLeadsIds(prev => prev.filter(id => id !== client.id));
-                            } else {
-                              setSelectedLeadsIds(prev => [...prev, client.id]);
-                            }
-                          }}
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${selectedLeadsIds.includes(client.id) ? 'bg-fortis-brand border-fortis-brand' : 'border-fortis-surface hover:border-fortis-mid'}`}
-                        >
-                          {selectedLeadsIds.includes(client.id) && <Check size={12} className="text-white" />}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-white">{client.name}</span>
-                          <span className="text-[10px] text-fortis-mid font-semibold">{client.email}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-[9px] px-2 py-0.5 rounded-full border font-black uppercase" style={{
-                          borderColor: AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color || '#575756',
-                          color: AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.color || '#575756'
-                        }}>
-                          {(AFTER_SALES_STATUS_MAP[client.afterSalesStatus as AfterSalesStatus]?.label || client.afterSalesStatus || 'Sem Status')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        {activeFlowsMap[client.id] ? (
-                          <div className="flex items-center gap-1.5 bg-fortis-brand/10 border border-fortis-brand/20 rounded-lg px-2 py-1 w-fit">
-                            <Workflow size={11} className="text-fortis-brand shrink-0" />
-                            <span className="text-[9px] font-black text-fortis-brand uppercase leading-tight">
-                              {activeFlowsMap[client.id].name}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-bold text-fortis-mid/40">Nenhum fluxo</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <img src={users.find(u => u.id === client.responsibleId)?.avatar} className="w-5 h-5 rounded-full border border-fortis-surface" alt="" />
-                          <span className="text-xs font-bold text-white/90">{(users.find(u => u.id === client.responsibleId)?.name || 'Nenhum').split(' ')[0]}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-bold text-white/90">
-                          {client.lastContactAt ? new Date(client.lastContactAt).toLocaleDateString('pt-BR') : '-'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 overflow-hidden">
-                        <div className="flex flex-wrap gap-1">
-                          {(client.tags || []).map(tagLabel => {
-                            const tagConfig = tags.find(t => t.label === tagLabel);
-                            return (
-                              <span key={tagLabel} title={tagLabel} className="px-1.5 py-0.5 rounded text-[9px] font-black text-white shadow-sm uppercase max-w-full truncate inline-block align-bottom" style={{ backgroundColor: tagConfig?.color || '#575756' }}>
-                                {tagLabel}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-white/80 truncate">{client.origin}</span>
-                          <span className="text-[10px] text-fortis-mid font-medium truncate">{client.channel}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-xs font-bold text-white/80">
-                          {client.purchaseHistory && client.purchaseHistory.length > 0 ? client.purchaseHistory.length : '-'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredAfterSales.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-fortis-mid">
-                        <div className="flex flex-col items-center gap-3">
-                          <Search size={32} className="opacity-20" />
-                          <p className="text-sm font-bold opacity-50">Nenhum cliente encontrado</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              {(isLoadingMore || hasMore) && (
-                <div className="p-6 flex justify-center border-t border-fortis-surface bg-fortis-dark/30">
-                  {isLoadingMore ? (
-                    <div className="flex items-center gap-3 text-fortis-brand animate-pulse">
-                      <div className="w-2 h-2 rounded-full bg-fortis-brand animate-bounce" />
-                      <div className="w-2 h-2 rounded-full bg-fortis-brand animate-bounce [animation-delay:-.3s]" />
-                      <div className="w-2 h-2 rounded-full bg-fortis-brand animate-bounce [animation-delay:-.5s]" />
-                      <span className="text-[10px] font-black uppercase tracking-widest ml-2">Buscando mais clientes...</span>
+              ))}
+              {filteredAfterSales.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-fortis-mid">
+                    <div className="flex flex-col items-center gap-3">
+                      <Search size={32} className="opacity-20" />
+                      <p className="text-sm font-bold opacity-50">Nenhum cliente encontrado</p>
                     </div>
-                  ) : (
-                    <button
-                      onClick={loadMore}
-                      className="px-8 py-2 rounded-xl bg-fortis-surface text-[10px] font-black uppercase tracking-widest hover:text-white transition-all border border-white/5"
-                    >
-                      Carregar Mais
-                    </button>
-                  )}
-                </div>
+                  </td>
+                </tr>
               )}
-          </div>
+            </tbody>
+          </table>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            onItemsPerPageChange={setItemsPerPage}
-            totalItems={sortedAfterSales.length}
-          />
+          {(isLoadingMore || hasMore) && (
+            <div className="p-6 flex justify-center border-t border-fortis-surface bg-fortis-dark/30">
+              {isLoadingMore ? (
+                <div className="flex items-center gap-3 text-fortis-brand animate-pulse">
+                  <div className="w-2 h-2 rounded-full bg-fortis-brand animate-bounce" />
+                  <div className="w-2 h-2 rounded-full bg-fortis-brand animate-bounce [animation-delay:-.3s]" />
+                  <div className="w-2 h-2 rounded-full bg-fortis-brand animate-bounce [animation-delay:-.5s]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest ml-2">Buscando mais clientes...</span>
+                </div>
+              ) : (
+                <button
+                  onClick={loadMore}
+                  className="px-8 py-2 rounded-xl bg-fortis-surface text-[10px] font-black uppercase tracking-widest hover:text-white transition-all border border-white/5"
+                >
+                  Carregar Mais
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={setItemsPerPage}
+          totalItems={sortedAfterSales.length}
+        />
       </div>
 
       {selectedLeadsIds.length > 0 && (
@@ -904,117 +904,117 @@ export const AfterSales: React.FC = () => {
                       <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-fortis-surface z-0" />
 
                       <div className="space-y-12 pt-2">
-                      {history.map((item) => {
-                        let statusColor = '#FFFFFF';
+                        {history.map((item) => {
+                          let statusColor = '#FFFFFF';
 
-                        if (item.field === 'status' && item.newValue) {
-                          const statusKey = Object.keys(LEAD_STATUS_MAP).find(
-                            k => LEAD_STATUS_MAP[k as LeadStatus].label === item.newValue
-                          ) as LeadStatus;
-                          if (statusKey) statusColor = LEAD_STATUS_MAP[statusKey].color;
-                        } else if (item.field === 'afterSalesStatus' && item.newValue) {
-                          const asKey = Object.keys(AFTER_SALES_STATUS_MAP).find(
-                            k => AFTER_SALES_STATUS_MAP[k as AfterSalesStatus].label === item.newValue
-                          ) as AfterSalesStatus;
-                          if (asKey) statusColor = AFTER_SALES_STATUS_MAP[asKey].color;
-                        }
+                          if (item.field === 'status' && item.newValue) {
+                            const statusKey = Object.keys(LEAD_STATUS_MAP).find(
+                              k => LEAD_STATUS_MAP[k as LeadStatus].label === item.newValue
+                            ) as LeadStatus;
+                            if (statusKey) statusColor = LEAD_STATUS_MAP[statusKey].color;
+                          } else if (item.field === 'afterSalesStatus' && item.newValue) {
+                            const asKey = Object.keys(AFTER_SALES_STATUS_MAP).find(
+                              k => AFTER_SALES_STATUS_MAP[k as AfterSalesStatus].label === item.newValue
+                            ) as AfterSalesStatus;
+                            if (asKey) statusColor = AFTER_SALES_STATUS_MAP[asKey].color;
+                          }
 
-                        return (
-                          <div key={item.id} className="relative group">
-                            <div
-                              className={`absolute -left-[27px] top-[4px] w-3.5 h-3.5 rounded-full ring-[4px] ring-black z-20 transition-transform group-hover:scale-125 ${item.type === 'SALE' ? 'bg-fortis-brand shadow-[0_0_15px_rgba(88,133,117,0.8)]' : 'bg-white'
-                                }`}
-                            />
+                          return (
+                            <div key={item.id} className="relative group">
+                              <div
+                                className={`absolute -left-[27px] top-[4px] w-3.5 h-3.5 rounded-full ring-[4px] ring-black z-20 transition-transform group-hover:scale-125 ${item.type === 'SALE' ? 'bg-fortis-brand shadow-[0_0_15px_rgba(88,133,117,0.8)]' : 'bg-white'
+                                  }`}
+                              />
 
-                            <div className="flex flex-col gap-4">
-                              <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 shadow-2xl group-hover:border-fortis-brand/40 transition-all">
-                                {item.type === 'EDIT' && item.oldValue !== undefined && item.newValue !== undefined ? (
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-xs font-bold text-white/40 line-through truncate max-w-[150px]">{item.oldValue}</span>
-                                    <ArrowRight size={16} className="text-fortis-brand shrink-0" />
-                                    <span
-                                      className="text-xs font-black px-3 py-1 rounded-xl uppercase tracking-widest border shadow-sm"
-                                      style={{
-                                        color: statusColor,
-                                        borderColor: `${statusColor}40`,
-                                        backgroundColor: `${statusColor}15`
-                                      }}
-                                    >
-                                      {item.newValue}
-                                    </span>
-                                  </div>
-                                ) : item.type === 'NOTE' ? (
-                                  editingNoteId === item.id ? (
+                              <div className="flex flex-col gap-4">
+                                <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-5 shadow-2xl group-hover:border-fortis-brand/40 transition-all">
+                                  {item.type === 'EDIT' && item.oldValue !== undefined && item.newValue !== undefined ? (
+                                    <div className="flex items-center gap-4">
+                                      <span className="text-xs font-bold text-white/40 line-through truncate max-w-[150px]">{item.oldValue}</span>
+                                      <ArrowRight size={16} className="text-fortis-brand shrink-0" />
+                                      <span
+                                        className="text-xs font-black px-3 py-1 rounded-xl uppercase tracking-widest border shadow-sm"
+                                        style={{
+                                          color: statusColor,
+                                          borderColor: `${statusColor}40`,
+                                          backgroundColor: `${statusColor}15`
+                                        }}
+                                      >
+                                        {item.newValue}
+                                      </span>
+                                    </div>
+                                  ) : item.type === 'NOTE' ? (
+                                    editingNoteId === item.id ? (
                                       <div className="flex flex-col gap-3">
-                                          <textarea
-                                              className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fortis-brand transition-all resize-none h-24"
-                                              value={editingNoteContent}
-                                              onChange={(e) => setEditingNoteContent(e.target.value)}
-                                          />
-                                          <div className="flex justify-end gap-2">
-                                              <button
-                                                  onClick={() => setEditingNoteId(null)}
-                                                  className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
-                                              >
-                                                  Cancelar
-                                              </button>
-                                              <button
-                                                  onClick={() => handleSaveEditNote(item.id)}
-                                                  className="px-4 py-2 bg-fortis-brand text-white text-xs font-bold rounded-lg hover:bg-fortis-brand/80 transition-colors"
-                                              >
-                                                  Salvar
-                                              </button>
-                                          </div>
+                                        <textarea
+                                          className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fortis-brand transition-all resize-none h-24"
+                                          value={editingNoteContent}
+                                          onChange={(e) => setEditingNoteContent(e.target.value)}
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                          <button
+                                            onClick={() => setEditingNoteId(null)}
+                                            className="px-4 py-2 text-xs font-bold text-fortis-mid hover:text-white transition-colors"
+                                          >
+                                            Cancelar
+                                          </button>
+                                          <button
+                                            onClick={() => handleSaveEditNote(item.id)}
+                                            className="px-4 py-2 bg-fortis-brand text-white text-xs font-bold rounded-lg hover:bg-fortis-brand/80 transition-colors"
+                                          >
+                                            Salvar
+                                          </button>
+                                        </div>
                                       </div>
-                                  ) : (
+                                    ) : (
                                       <div className="flex justify-between items-start gap-4">
-                                          <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
-                                              {item.description}
-                                          </p>
-                                          {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
-                                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                  <button
-                                                      onClick={() => {
-                                                          setEditingNoteId(item.id);
-                                                          setEditingNoteContent(item.description);
-                                                      }}
-                                                      className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-fortis-brand transition-colors"
-                                                      title="Editar"
-                                                  >
-                                                      <Edit2 size={14} />
-                                                  </button>
-                                                  <button
-                                                      onClick={() => handleDeleteNote(item.id)}
-                                                      className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
-                                                      title="Excluir"
-                                                  >
-                                                      <Trash2 size={14} />
-                                                  </button>
-                                              </div>
-                                          )}
+                                        <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap flex-1">
+                                          {item.description}
+                                        </p>
+                                        {(currentUser?.role === 'ADMIN' || currentUser?.id === item.userId) && (
+                                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                            <button
+                                              onClick={() => {
+                                                setEditingNoteId(item.id);
+                                                setEditingNoteContent(item.description);
+                                              }}
+                                              className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-fortis-brand transition-colors"
+                                              title="Editar"
+                                            >
+                                              <Edit2 size={14} />
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteNote(item.id)}
+                                              className="p-1.5 rounded-lg hover:bg-fortis-dark text-fortis-mid hover:text-rose-400 transition-colors"
+                                              title="Excluir"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
-                                  )
-                                ) : (
-                                  <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
-                                    {item.description}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
-                                  <Calendar size={13} className="text-blue-400" />
-                                  {new Date(item.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })}
+                                    )
+                                  ) : (
+                                    <p className="text-sm text-white font-bold leading-relaxed opacity-90 break-words whitespace-pre-wrap">
+                                      {item.description}
+                                    </p>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
-                                  <User size={13} className="text-emerald-400" />
-                                  {(users.find(u => u.id === item.userId)?.name || 'Sistema').split(' ')[0]}
+
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                                    <Calendar size={13} className="text-blue-400" />
+                                    {new Date(item.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })}
+                                  </div>
+                                  <div className="flex items-center gap-2.5 text-[10px] font-black text-white/80 uppercase tracking-[0.15em] bg-fortis-surface px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                                    <User size={13} className="text-emerald-400" />
+                                    {(users.find(u => u.id === item.userId)?.name || 'Sistema').split(' ')[0]}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
