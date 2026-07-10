@@ -19,7 +19,12 @@ import {
   Quote,
   Undo,
   Redo,
-  Layout
+  Layout,
+  Folder,
+  FolderPlus,
+  ChevronDown,
+  ChevronRight,
+  Edit3
 } from 'lucide-react';
 import { useApp } from '../store';
 import { SalesScript } from '../types';
@@ -107,6 +112,89 @@ export const SalesScripts: React.FC = () => {
   const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Folder states & persistence
+  interface Folder {
+    id: string;
+    name: string;
+  }
+
+  const [folders, setFolders] = useState<Folder[]>(() => {
+    const saved = localStorage.getItem('fortis_folders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [scriptFolderMap, setScriptFolderMap] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('fortis_script_folder_mapping');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('fortis_expanded_folders');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fortis_folders', JSON.stringify(folders));
+  }, [folders]);
+
+  useEffect(() => {
+    localStorage.setItem('fortis_script_folder_mapping', JSON.stringify(scriptFolderMap));
+  }, [scriptFolderMap]);
+
+  useEffect(() => {
+    localStorage.setItem('fortis_expanded_folders', JSON.stringify(expandedFolders));
+  }, [expandedFolders]);
+
+  const handleCreateFolder = () => {
+    const name = window.prompt('Digite o nome da nova pasta:');
+    if (!name || !name.trim()) return;
+    const newFolder: Folder = {
+      id: Math.random().toString(36).substring(2, 9),
+      name: name.trim()
+    };
+    setFolders(prev => [...prev, newFolder]);
+    setExpandedFolders(prev => ({ ...prev, [newFolder.id]: true }));
+  };
+
+  const handleRenameFolder = (id: string, currentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const name = window.prompt('Digite o novo nome da pasta:', currentName);
+    if (!name || !name.trim() || name === currentName) return;
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, name: name.trim() } : f));
+  };
+
+  const handleDeleteFolder = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('Tem certeza que deseja excluir esta pasta? Os scripts dentro dela não serão apagados.')) {
+      setFolders(prev => prev.filter(f => f.id !== id));
+      setScriptFolderMap(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(key => {
+          if (next[key] === id) {
+            delete next[key];
+          }
+        });
+        return next;
+      });
+    }
+  };
+
+  const toggleFolder = (id: string) => {
+    setExpandedFolders(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const moveScriptToFolder = (scriptId: string, folderId: string | null) => {
+    setScriptFolderMap(prev => {
+      const next = { ...prev };
+      if (folderId) {
+        next[scriptId] = folderId;
+      } else {
+        delete next[scriptId];
+      }
+      return next;
+    });
+  };
+
   const selectedScript = salesScripts.find(s => s.id === selectedScriptId);
 
   const editor = useEditor({
@@ -176,13 +264,22 @@ export const SalesScripts: React.FC = () => {
         <div className="p-6 border-b border-fortis-surface space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black text-white uppercase tracking-widest">Meus Scripts</h2>
-            <button 
-              onClick={handleNew}
-              className="p-2 bg-fortis-brand text-white rounded-xl hover:bg-fortis-brand/80 transition-all shadow-lg shadow-fortis-brand/20 active:scale-95"
-              title="Novo Script"
-            >
-              <Plus size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleCreateFolder}
+                className="p-2 bg-fortis-panel border border-fortis-surface text-fortis-mid hover:text-white rounded-xl hover:bg-white/5 transition-all shadow-lg active:scale-95"
+                title="Nova Pasta"
+              >
+                <FolderPlus size={18} />
+              </button>
+              <button 
+                onClick={handleNew}
+                className="p-2 bg-fortis-brand text-white rounded-xl hover:bg-fortis-brand/80 transition-all shadow-lg shadow-fortis-brand/20 active:scale-95"
+                title="Novo Script"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fortis-mid" />
@@ -197,36 +294,134 @@ export const SalesScripts: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-          {filteredScripts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-fortis-mid/40">
-              <FileText size={48} strokeWidth={1} className="mb-4" />
-              <p className="text-[10px] font-black uppercase tracking-widest">Nenhum script encontrado</p>
-            </div>
-          ) : (
-            filteredScripts.map(script => (
+          {(() => {
+            const renderScriptItem = (script: SalesScript) => (
               <div 
                 key={script.id}
                 onClick={() => setSelectedScriptId(script.id)}
-                className={`group flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${selectedScriptId === script.id ? 'bg-fortis-brand/10 border-fortis-brand text-white shadow-lg shadow-fortis-brand/5' : 'bg-transparent border-transparent text-fortis-mid hover:bg-white/5 hover:text-white'}`}
+                className={`group flex items-center justify-between p-3 pl-4 rounded-xl cursor-pointer transition-all border ${selectedScriptId === script.id ? 'bg-fortis-brand/10 border-fortis-brand text-white shadow-lg shadow-fortis-brand/5' : 'bg-transparent border-transparent text-fortis-mid hover:bg-white/5 hover:text-white'}`}
               >
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <FileText size={18} className={selectedScriptId === script.id ? 'text-fortis-brand' : 'text-fortis-surface'} />
+                  <FileText size={16} className={selectedScriptId === script.id ? 'text-fortis-brand' : 'text-fortis-surface'} />
                   <div className="min-w-0">
-                    <p className="text-sm font-bold truncate">{script.title}</p>
-                    <p className="text-[10px] font-medium opacity-50 uppercase tracking-wider">
+                    <p className="text-xs font-bold truncate">{script.title}</p>
+                    <p className="text-[9px] font-medium opacity-50 uppercase tracking-wider">
                       {new Date(script.updatedAt).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
-                <button 
-                  onClick={(e) => handleDelete(script.id, e)}
-                  className="p-1.5 text-fortis-mid hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  <select
+                    value={scriptFolderMap[script.id] || ''}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => moveScriptToFolder(script.id, e.target.value || null)}
+                    className="bg-fortis-dark border border-fortis-surface rounded px-1.5 py-0.5 text-[10px] text-fortis-mid outline-none hover:text-white focus:border-fortis-brand transition-all cursor-pointer mr-1"
+                    title="Mover para pasta"
+                  >
+                    <option value="">Sem Pasta</option>
+                    {folders.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={(e) => handleDelete(script.id, e)}
+                    className="p-1 text-fortis-mid hover:text-rose-400 transition-all"
+                    title="Excluir Script"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-            ))
-          )}
+            );
+
+            if (filteredScripts.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-12 text-fortis-mid/40">
+                  <FileText size={48} strokeWidth={1} className="mb-4" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhum script encontrado</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-4">
+                {/* Render Folders */}
+                {folders.map(folder => {
+                  const folderScripts = filteredScripts.filter(s => scriptFolderMap[s.id] === folder.id);
+                  const isExpanded = !!(expandedFolders[folder.id] || searchQuery);
+                  
+                  if (searchQuery && folderScripts.length === 0) return null;
+
+                  return (
+                    <div key={folder.id} className="space-y-1 bg-fortis-dark/20 p-1.5 rounded-2xl border border-fortis-surface/30">
+                      <div 
+                        onClick={() => toggleFolder(folder.id)}
+                        className="group flex items-center justify-between p-2 rounded-xl hover:bg-white/5 cursor-pointer text-white transition-all"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="text-fortis-mid">
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </div>
+                          <Folder size={14} className="text-fortis-brand" />
+                          <span className="text-xs font-black uppercase tracking-wider truncate">{folder.name}</span>
+                          <span className="text-[10px] text-fortis-mid font-semibold bg-fortis-surface px-1.5 py-0.5 rounded-md">
+                            {folderScripts.length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={(e) => handleRenameFolder(folder.id, folder.name, e)}
+                            className="p-1 text-fortis-mid hover:text-white transition-all"
+                            title="Renomear Pasta"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteFolder(folder.id, e)}
+                            className="p-1 text-fortis-mid hover:text-rose-400 transition-all"
+                            title="Excluir Pasta"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="pl-3 pr-1 pb-1 space-y-1 border-l border-fortis-surface/50 ml-3.5 mt-1">
+                          {folderScripts.length === 0 ? (
+                            <div className="text-[10px] text-fortis-mid/40 py-2 pl-2">
+                              Pasta vazia
+                            </div>
+                          ) : (
+                            folderScripts.map(script => renderScriptItem(script))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Render Uncategorized Scripts */}
+                {(() => {
+                  const uncategorizedScripts = filteredScripts.filter(s => !scriptFolderMap[s.id]);
+                  if (uncategorizedScripts.length === 0) return null;
+
+                  return (
+                    <div className="space-y-1">
+                      {folders.length > 0 && (
+                        <div className="px-2 py-1">
+                          <span className="text-[9px] font-black text-fortis-mid uppercase tracking-widest">Sem Pasta</span>
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        {uncategorizedScripts.map(script => renderScriptItem(script))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -244,10 +439,28 @@ export const SalesScripts: React.FC = () => {
             <input 
               type="text"
               placeholder="Título do script..."
-              className="flex-1 bg-transparent border-none text-lg font-black text-white outline-none placeholder:text-fortis-mid/30"
+              className="flex-1 bg-transparent border-none text-lg font-black text-white outline-none placeholder:text-fortis-mid/30 mr-4"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
+            <div className="flex items-center gap-2 mr-2">
+              <Folder size={14} className="text-fortis-mid" />
+              <select
+                value={selectedScriptId ? (scriptFolderMap[selectedScriptId] || '') : ''}
+                onChange={(e) => {
+                  if (selectedScriptId) {
+                    moveScriptToFolder(selectedScriptId, e.target.value || null);
+                  }
+                }}
+                disabled={!selectedScriptId}
+                className="bg-fortis-dark border border-fortis-surface rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-fortis-brand transition-all cursor-pointer disabled:opacity-50"
+              >
+                <option value="">Sem Pasta</option>
+                {folders.map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
             <button 
               onClick={handleSave}
               disabled={isSaving || !title.trim()}
