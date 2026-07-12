@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow, PendingApproval, SalesScript } from './types';
+import { Lead, User, ActivityLog, LeadStatus, UserRole, ConfigTag, AppNotification, LeadHistory, AfterSalesStatus, TrafficInvestment, CadenceFlow, PendingApproval, SalesScript, ScriptFolder } from './types';
 import { LEAD_STATUS_MAP, AFTER_SALES_STATUS_MAP, CHANNELS as INITIAL_CHANNELS, ORIGINS as INITIAL_ORIGINS, PAID_PURCHASE_STATUSES, UNPAID_PURCHASE_STATUSES } from './constants';
 
 export interface CompanySettings {
@@ -112,6 +112,13 @@ interface AppContextType {
   addSalesScript: (script: { title: string; content: string }) => Promise<string | null>;
   updateSalesScript: (id: string, updates: Partial<SalesScript>) => Promise<void>;
   deleteSalesScript: (id: string) => Promise<void>;
+  scriptFolders: ScriptFolder[];
+  fetchScriptFolders: () => Promise<void>;
+  addScriptFolder: (name: string) => Promise<ScriptFolder | null>;
+  renameScriptFolder: (id: string, name: string) => Promise<void>;
+  updateFolderColor: (id: string, color: string | null) => Promise<void>;
+  deleteScriptFolder: (id: string) => Promise<void>;
+  moveScriptToFolder: (scriptId: string, folderId: string | null) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -152,6 +159,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [trafficInvestments, setTrafficInvestments] = useState<TrafficInvestment[]>([]);
   const [logs] = useState<ActivityLog[]>([]);
   const [salesScripts, setSalesScripts] = useState<SalesScript[]>([]);
+  const [scriptFolders, setScriptFolders] = useState<ScriptFolder[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({
     company_name: 'Fortis Clothing S.A.',
     contact_email: 'contato@fortis.clothing',
@@ -1315,6 +1323,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         title: s.title,
         content: s.content,
         userId: s.user_id,
+        folderId: s.folder_id ?? null,
         createdAt: s.created_at,
         updatedAt: s.updated_at
       })));
@@ -1342,6 +1351,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: data.title,
       content: data.content,
       userId: data.user_id,
+      folderId: data.folder_id ?? null,
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };
@@ -1385,6 +1395,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addNotification('Sucesso', 'Script removido com sucesso.', 'INFO');
   };
 
+  const fetchScriptFolders = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('sales_script_folders')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      setScriptFolders(data.map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        color: f.color ?? null,
+        userId: f.user_id,
+        createdAt: f.created_at
+      })));
+    }
+  }, []);
+
+  const addScriptFolder = async (name: string): Promise<ScriptFolder | null> => {
+    const { data, error } = await supabase
+      .from('sales_script_folders')
+      .insert([{ name, user_id: currentUser?.id }])
+      .select()
+      .single();
+
+    if (error || !data) {
+      addNotification('Erro', 'Não foi possível criar a pasta.', 'ERROR');
+      return null;
+    }
+
+    const newFolder: ScriptFolder = {
+      id: data.id,
+      name: data.name,
+      color: data.color ?? null,
+      userId: data.user_id,
+      createdAt: data.created_at
+    };
+    setScriptFolders(prev => [...prev, newFolder]);
+    return newFolder;
+  };
+
+  const renameScriptFolder = async (id: string, name: string) => {
+    const { error } = await supabase
+      .from('sales_script_folders')
+      .update({ name })
+      .eq('id', id);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível renomear a pasta.', 'ERROR');
+      return;
+    }
+
+    setScriptFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+  };
+
+  const deleteScriptFolder = async (id: string) => {
+    // Zera folder_id dos scripts que estavam nessa pasta
+    await supabase
+      .from('sales_scripts')
+      .update({ folder_id: null })
+      .eq('folder_id', id);
+
+    const { error } = await supabase
+      .from('sales_script_folders')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível excluir a pasta.', 'ERROR');
+      return;
+    }
+
+    setScriptFolders(prev => prev.filter(f => f.id !== id));
+    setSalesScripts(prev => prev.map(s => s.folderId === id ? { ...s, folderId: null } : s));
+  };
+
+  const moveScriptToFolder = async (scriptId: string, folderId: string | null) => {
+    const { error } = await supabase
+      .from('sales_scripts')
+      .update({ folder_id: folderId })
+      .eq('id', scriptId);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível mover o script.', 'ERROR');
+      return;
+    }
+
+    setSalesScripts(prev => prev.map(s => s.id === scriptId ? { ...s, folderId } : s));
+  };
+
+  const updateFolderColor = async (id: string, color: string | null) => {
+    const { error } = await supabase
+      .from('sales_script_folders')
+      .update({ color })
+      .eq('id', id);
+
+    if (error) {
+      addNotification('Erro', 'Não foi possível atualizar a cor da pasta.', 'ERROR');
+      return;
+    }
+
+    setScriptFolders(prev => prev.map(f => f.id === id ? { ...f, color } : f));
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, users, leads, logs, tags, channels, origins, notifications,
@@ -1396,7 +1509,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       companySettings, updateSettings, fetchSettings,
       cadenceFlows, addCadenceFlow, updateCadenceFlow, deleteCadenceFlow, fetchCadenceFlows,
       pendingApprovals, fetchPendingApprovals, approveUser, rejectUser,
-      salesScripts, fetchSalesScripts, addSalesScript, updateSalesScript, deleteSalesScript
+      salesScripts, fetchSalesScripts, addSalesScript, updateSalesScript, deleteSalesScript,
+      scriptFolders, fetchScriptFolders, addScriptFolder, renameScriptFolder, updateFolderColor, deleteScriptFolder, moveScriptToFolder
     }}>
 
       {children}

@@ -140,11 +140,20 @@ export interface AppNotification {
   read: boolean;
 }
 
+export interface ScriptFolder {
+  id: string;
+  name: string;
+  color?: string | null;
+  userId?: string;
+  createdAt: string;
+}
+
 export interface SalesScript {
   id: string;
   title: string;
   content: string;
   userId: string;
+  folderId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
