@@ -86,6 +86,7 @@ export interface Lead {
   city?: string;
   createdAt: string;
   lastContactAt: string;
+  nextContactAt?: string;
   lastPurchaseAt?: string;
   purchaseHistory?: { id: string; date: string; value: number; status: string }[];
   history: LeadHistory[];

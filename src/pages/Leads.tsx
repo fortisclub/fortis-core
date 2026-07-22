@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
-import { LayoutGrid, List, Filter, Search, MoreVertical, Calendar, User, MapPin, X, History, FileText, Phone, AtSign, Building2, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Trash2, Tags as TagsIcon } from 'lucide-react';
+import { LayoutGrid, List, Filter, Search, MoreVertical, Calendar, User, MapPin, X, History, FileText, Phone, AtSign, Building2, Compass, BadgeDollarSign, MessageSquareText, ArrowRight, Edit2, Trash2, Tags as TagsIcon, Check, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { useApp } from '../store';
 import { LEAD_STATUS_MAP, UFS } from '../constants';
-import { LeadStatus } from '../types';
+import { LeadStatus, Lead } from '../types';
 import { LeadModal } from '../components/LeadModal';
 import { useTableSort } from '../hooks/useTableSort';
 import { SortableTableHeader } from '../components/SortableTableHeader';
@@ -40,8 +40,36 @@ export const Leads: React.FC = () => {
 
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [confirmingLeadMove, setConfirmingLeadMove] = useState<{ id: string; status: LeadStatus; email: string } | null>(null);
+  const [movingLead, setMovingLead] = useState<{ id: string; status: LeadStatus; name: string; email: string; currentNextContact?: string } | null>(null);
+  const [advanceDueDate, setAdvanceDueDate] = useState<string>('');
   const [confirmationEmail, setConfirmationEmail] = useState('');
+  const [calendarDate, setCalendarDate] = useState<{ year: number; month: number }>({
+    year: new Date().getFullYear(),
+    month: new Date().getMonth()
+  });
+
+  const calendarMonthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const goCalendarPrev = () => setCalendarDate(prev => {
+    if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+    return { year: prev.year, month: prev.month - 1 };
+  });
+  const goCalendarNext = () => setCalendarDate(prev => {
+    if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+    return { year: prev.year, month: prev.month + 1 };
+  });
+
+  const formatCalendarDay = (year: number, month: number, day: number) => {
+    const mm = String(month + 1).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${year}-${mm}-${dd}`;
+  };
 
   // Reset e fetch inicial
   React.useEffect(() => {
@@ -297,13 +325,24 @@ export const Leads: React.FC = () => {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     const id = e.dataTransfer.getData('leadId');
-                    if (status === 'QUALIFICADO') {
-                      const lead = leads.find(l => l.id === id);
-                      setConfirmingLeadMove({ id, status, email: lead?.email || '' });
-                      setConfirmationEmail(lead?.email || '');
+                    if (!id) return;
+                    const lead = leads.find(l => l.id === id);
+                    if (!lead) return;
+
+                    let initialDueDate = '';
+                    if (lead.nextContactAt) {
+                      const d = new Date(lead.nextContactAt);
+                      if (!isNaN(d.getTime())) {
+                        initialDueDate = d.toLocaleDateString('sv-SE');
+                        setCalendarDate({ year: d.getFullYear(), month: d.getMonth() });
+                      }
                     } else {
-                      moveLead(id, status);
+                      setCalendarDate({ year: new Date().getFullYear(), month: new Date().getMonth() });
                     }
+
+                    setAdvanceDueDate(initialDueDate);
+                    setConfirmationEmail(lead.email || '');
+                    setMovingLead({ id: lead.id, status, name: lead.name, email: lead.email || '', currentNextContact: lead.nextContactAt });
                   }}
                 >
                   <div className="p-4 flex items-center justify-between shrink-0 bg-fortis-panel/10">
@@ -339,9 +378,38 @@ export const Leads: React.FC = () => {
                           })}
                         </div>
 
-                        <div className="flex justify-between items-center border-t border-fortis-surface/50 pt-3">
-                          <span className="text-[9px] text-fortis-mid font-black uppercase">{lead.uf}</span>
-                          <img src={users.find(u => u.id === lead.responsibleId)?.avatar} className="w-6 h-6 rounded-full border border-fortis-surface shadow-sm" alt="" />
+                        <div className="flex items-end justify-between border-t border-fortis-surface/50 pt-3 mt-2">
+                          <div className="space-y-0.5 min-w-0">
+                            <p className="text-[10px] text-fortis-mid font-semibold uppercase tracking-wider">
+                              {lead.uf || '-'}
+                            </p>
+                            {lead.nextContactAt ? (() => {
+                              const dateObj = new Date(lead.nextContactAt);
+                              const formattedDate = !isNaN(dateObj.getTime())
+                                ? dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                : '';
+                              if (!formattedDate) return null;
+
+                              const taskDateStr = lead.nextContactAt.split('T')[0];
+                              const now = new Date();
+                              const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+                              let colorClass = 'text-emerald-400'; // Posterior a hoje -> verde
+                              if (taskDateStr < todayStr) {
+                                colorClass = 'text-red-400'; // Anterior a hoje -> vermelho
+                              } else if (taskDateStr === todayStr) {
+                                colorClass = 'text-amber-400'; // Igual a hoje -> amarelo
+                              }
+
+                              return (
+                                <div className={`flex items-center gap-1.5 ${colorClass} text-xs font-bold`} title="Data da Próxima Abordagem">
+                                  <Clock size={12} className="shrink-0" />
+                                  <span>{formattedDate}</span>
+                                </div>
+                              );
+                            })() : null}
+                          </div>
+                          <img src={users.find(u => u.id === lead.responsibleId)?.avatar} className="w-6 h-6 rounded-full border border-fortis-surface shadow-sm shrink-0 ml-2" alt="" />
                         </div>
                       </div>
                     ))}
@@ -762,62 +830,160 @@ export const Leads: React.FC = () => {
         leadId={selectedLeadId}
       />
 
-      {confirmingLeadMove && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmingLeadMove(null)} />
-          <div className="relative bg-fortis-dark border border-fortis-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-fortis-surface flex items-center justify-between bg-fortis-panel/50">
-              <h3 className="text-lg font-bold text-white">Confirmar Qualificação</h3>
-              <button onClick={() => setConfirmingLeadMove(null)} className="text-fortis-mid hover:text-white transition-colors">
-                <X size={20} />
-              </button>
+      {movingLead && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-fortis-panel border border-fortis-surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 border-b border-fortis-surface/50">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Check size={18} className="text-emerald-400 stroke-[3]" />
+                  Avançar Etapa
+                </h2>
+                <button
+                  onClick={() => setMovingLead(null)}
+                  className="text-fortis-mid hover:text-white p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="text-xs text-fortis-mid">
+                Movendo para: <span className="text-cyan-400 font-bold">{LEAD_STATUS_MAP[movingLead.status].label}</span>
+              </p>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
-                <AtSign size={20} />
-                <p className="text-xs font-bold leading-relaxed">
-                  Para qualificar este lead, é necessário confirmar ou inserir o e-mail de contato.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-fortis-mid uppercase tracking-widest pl-1">E-mail do Lead</label>
-                <div className="relative">
-                  <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fortis-mid" />
+            {/* Body */}
+            <div className="px-6 py-5 space-y-3">
+              {movingLead.status === 'QUALIFICADO' && (
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
+                    <AtSign size={16} />
+                    <span>E-mail Obrigatório para Qualificação</span>
+                  </div>
                   <input
                     type="email"
                     value={confirmationEmail}
                     onChange={(e) => setConfirmationEmail(e.target.value)}
-                    className="w-full bg-fortis-panel border border-fortis-surface rounded-xl pl-9 pr-4 py-3 text-sm text-white font-bold outline-none focus:border-fortis-brand transition-all"
+                    className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-fortis-brand transition-all"
                     placeholder="exemplo@email.com"
-                    autoFocus
                   />
                 </div>
+              )}
+
+              <label className="block text-xs font-bold text-fortis-mid mb-1 uppercase tracking-wider">
+                PRAZO PARA ESTA ETAPA
+              </label>
+
+              {/* Calendar Widget */}
+              <div className="bg-fortis-dark border border-fortis-surface rounded-2xl overflow-hidden">
+                {/* Calendar Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-fortis-surface/50">
+                  <button
+                    type="button"
+                    onClick={goCalendarPrev}
+                    className="p-1.5 rounded-lg text-fortis-mid hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-sm font-bold text-white">
+                    {calendarMonthNames[calendarDate.month]} {calendarDate.year}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={goCalendarNext}
+                    className="p-1.5 rounded-lg text-fortis-mid hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                {/* Day names */}
+                <div className="grid grid-cols-7 px-2 pt-2">
+                  {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                    <div key={i} className="text-center text-[10px] font-black text-fortis-mid/50 uppercase py-1">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Days grid */}
+                <div className="grid grid-cols-7 px-2 pb-3 gap-y-0.5">
+                  {Array.from({ length: getFirstDayOfMonth(calendarDate.year, calendarDate.month) }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
+                  {Array.from({ length: getDaysInMonth(calendarDate.year, calendarDate.month) }, (_, i) => i + 1).map(day => {
+                    const dateStr = formatCalendarDay(calendarDate.year, calendarDate.month, day);
+                    const todayStr = new Date().toLocaleDateString('sv-SE');
+                    const isToday = dateStr === todayStr;
+                    const isSelected = dateStr === advanceDueDate;
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setAdvanceDueDate(isSelected ? '' : dateStr)}
+                        className={`
+                          w-full aspect-square flex items-center justify-center rounded-lg text-[12px] font-bold transition-all
+                          ${isSelected
+                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                            : isToday
+                              ? 'bg-fortis-brand/20 text-fortis-brand ring-1 ring-fortis-brand/40'
+                              : 'text-white/70 hover:bg-white/10 hover:text-white'
+                          }
+                        `}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Selected date display */}
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-fortis-mid/60">
+                  {advanceDueDate
+                    ? `Selecionado: ${new Date(advanceDueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`
+                    : 'Deixe em branco para definir depois.'}
+                </p>
+                {advanceDueDate && (
+                  <button
+                    type="button"
+                    onClick={() => setAdvanceDueDate('')}
+                    className="text-[10px] text-fortis-mid/60 hover:text-red-400 transition-colors font-bold flex items-center gap-1"
+                  >
+                    <X size={10} /> Limpar
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="p-6 bg-fortis-panel/30 flex gap-3">
+            {/* Footer */}
+            <div className="px-6 pb-6 flex gap-3">
               <button
-                onClick={() => setConfirmingLeadMove(null)}
-                className="flex-1 px-4 py-3 rounded-xl border border-fortis-surface text-xs font-bold text-fortis-mid hover:text-white transition-all"
+                onClick={() => setMovingLead(null)}
+                className="flex-1 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors text-sm"
               >
                 Cancelar
               </button>
               <button
                 onClick={async () => {
-                  if (confirmationEmail.trim()) {
-                    await updateLead(confirmingLeadMove.id, {
-                      email: confirmationEmail.trim(),
-                      status: 'QUALIFICADO' as LeadStatus
-                    });
-                    setConfirmingLeadMove(null);
+                  if (movingLead.status === 'QUALIFICADO' && (!confirmationEmail.trim() || !confirmationEmail.includes('@'))) {
+                    return;
                   }
+                  const updates: Partial<Lead> = {
+                    status: movingLead.status,
+                    nextContactAt: advanceDueDate ? new Date(advanceDueDate + 'T12:00:00').toISOString() : undefined
+                  };
+                  if (movingLead.status === 'QUALIFICADO') {
+                    updates.email = confirmationEmail.trim();
+                  }
+                  await updateLead(movingLead.id, updates);
+                  setMovingLead(null);
                 }}
-                disabled={!confirmationEmail.trim() || !confirmationEmail.includes('@')}
-                className="flex-1 bg-fortis-brand hover:bg-fortis-brand/90 disabled:opacity-50 px-4 py-3 rounded-xl text-xs font-bold text-white shadow-lg transition-all active:scale-95"
+                disabled={movingLead.status === 'QUALIFICADO' && (!confirmationEmail.trim() || !confirmationEmail.includes('@'))}
+                className="flex-1 py-2.5 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20 text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Qualificar Lead
+                <Check size={16} className="stroke-[3]" /> Confirmar
               </button>
             </div>
           </div>

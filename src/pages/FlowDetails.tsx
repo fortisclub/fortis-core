@@ -810,10 +810,18 @@ export const FlowDetails: React.FC = () => {
                                                     <span className="text-[10px] text-fortis-mid font-black uppercase tracking-widest">{lead.uf || '-'}</span>
                                                     {task.dueDate && (() => {
                                                         const taskDateStr = task.dueDate.split('T')[0];
-                                                        const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD local
-                                                        const isOverdue = taskDateStr < todayStr;
+                                                        const now = new Date();
+                                                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+                                                        let colorClass = 'text-emerald-400'; // Posterior a hoje -> verde
+                                                        if (taskDateStr < todayStr) {
+                                                            colorClass = 'text-red-400'; // Anterior a hoje -> vermelho
+                                                        } else if (taskDateStr === todayStr) {
+                                                            colorClass = 'text-amber-400'; // Igual a hoje -> amarelo
+                                                        }
+
                                                         return (
-                                                            <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-400' : 'text-fortis-mid'}`}>
+                                                            <div className={`flex items-center gap-1.5 ${colorClass}`}>
                                                                 <Clock size={10} className="stroke-[3]" />
                                                                 <span className="text-[9px] font-black tracking-wider uppercase">
                                                                     {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}

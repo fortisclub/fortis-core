@@ -129,6 +129,7 @@ const FIELD_LABELS: Record<string, string> = {
   phone: 'Telefone',
 
   status: 'Status',
+  nextContactAt: 'Data da Próxima Abordagem',
   afterSalesStatus: 'Status de Pós-venda',
   responsibleId: 'Responsável',
   channel: 'Canal',
@@ -892,6 +893,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         city: l.city || '',
         createdAt: l.created_at,
         lastContactAt: l.last_contact_at,
+        nextContactAt: l.next_contact_at,
         lastPurchaseAt: purchaseHistory.length > 0 ? purchaseHistory[0].date : fixTz(l.last_purchase_at),
         purchaseHistory,
         history: [],
@@ -1106,6 +1108,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (updates.addressNumber !== undefined) dataUpdates.address_number = updates.addressNumber;
     if (updates.district !== undefined) dataUpdates.district = updates.district;
     if (updates.city !== undefined) dataUpdates.city = updates.city;
+    if (updates.nextContactAt !== undefined) dataUpdates.next_contact_at = updates.nextContactAt;
     if (updates.commercialActionIds !== undefined) dataUpdates.commercial_action_ids = updates.commercialActionIds;
     if (updates.afterSalesStatus === null) dataUpdates.after_sales_status = null;
 
