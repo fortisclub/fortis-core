@@ -158,3 +158,23 @@ export interface SalesScript {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Product {
+  sku: string;
+  product_name?: string;
+  description?: string;
+  price?: number;
+  size?: string;
+}
+
+export interface ProductPurchase {
+  id: string;
+  lead_id: string;
+  purchase_id: string;
+  sku: string; // The user mentioned sku_id but also sku, assuming sku mapping to products table. I'll use sku mapping since the products table has sku as primary key
+  size?: string;
+  cost_price?: number;
+  discount_price?: number;
+  product?: Product; // For when we join with the products table
+}
+

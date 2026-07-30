@@ -4,6 +4,7 @@ import { useApp } from '../store';
 import { useTableSort } from '../hooks/useTableSort';
 import { SortableTableHeader } from '../components/SortableTableHeader';
 import { Pagination } from '../components/Pagination';
+import { SaleModal } from '../components/SaleModal';
 import { PAID_PURCHASE_STATUSES, UNPAID_PURCHASE_STATUSES } from '../constants';
 
 export const Sales: React.FC = () => {
@@ -12,6 +13,9 @@ export const Sales: React.FC = () => {
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(25);
+    
+    const [selectedSale, setSelectedSale] = useState<any | null>(null);
+    const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
 
     const filteredSales = useMemo(() => {
         const allSales = [];
@@ -85,7 +89,11 @@ export const Sales: React.FC = () => {
                         {paginatedSales.map(sale => (
                             <tr
                                 key={sale.id || `${sale.clientId}-${sale.date}`}
-                                className="hover:bg-fortis-surface/20 transition-colors group"
+                                onClick={() => {
+                                    setSelectedSale(sale);
+                                    setIsSaleModalOpen(true);
+                                }}
+                                className="hover:bg-fortis-surface/20 transition-colors group cursor-pointer"
                             >
                                 <td className="px-6 py-4">
                                     <span className="text-[10px] font-mono text-fortis-mid group-hover:text-white transition-colors">{sale.clientId}</span>
@@ -164,6 +172,12 @@ export const Sales: React.FC = () => {
                 itemsPerPage={itemsPerPage}
                 onItemsPerPageChange={setItemsPerPage}
                 totalItems={sortedSales.length}
+            />
+
+            <SaleModal 
+                isOpen={isSaleModalOpen} 
+                onClose={() => setIsSaleModalOpen(false)} 
+                sale={selectedSale} 
             />
         </div>
     );
