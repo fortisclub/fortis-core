@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, LabelList, ReferenceLine, Label } from 'recharts';
-import { TrendingUp, Users, Target, Activity, MoreHorizontal, ArrowUpRight, ArrowDownRight, Calendar, DollarSign, Wallet, ShoppingCart } from 'lucide-react';
+import { TrendingUp, Users, Target, Activity, MoreHorizontal, ArrowUpRight, ArrowDownRight, Calendar, DollarSign, Wallet, ShoppingCart, Package } from 'lucide-react';
 import { useApp } from '../store';
 import { LEAD_STATUS_MAP, PAID_PURCHASE_STATUSES } from '../constants';
 import { supabase } from '../lib/supabase';
@@ -11,7 +11,9 @@ const COLORS = ['#60A5FA', '#FBBF24', '#A78BFA', '#34D399', '#F87171'];
 export const Dashboard: React.FC = () => {
   const { leads, globalStats, trafficInvestments, fetchGlobalStats, fetchTrafficInvestments, filters, setFilters } = useApp();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'vendas' | 'cac-ltv'>('vendas');
+  const [activeTab, setActiveTab] = useState<'vendas' | 'cac-ltv' | 'produtos'>('vendas');
+  const [productsData, setProductsData] = useState<{categories: any[], products: any[]}>({categories: [], products: []});
+  const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [monthlyMetrics, setMonthlyMetrics] = useState<any[]>([]);
 
   const avgCac = monthlyMetrics.length ? monthlyMetrics.reduce((acc, m) => acc + m.cac, 0) / monthlyMetrics.length : 0;
@@ -96,6 +98,151 @@ export const Dashboard: React.FC = () => {
       fetch12Months();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    async function fetchProductsRankings() {
+      if (activeTab !== 'produtos') return;
+      setIsProductsLoading(true);
+      
+      const period = filters.period;
+      const customRange = filters.customRange;
+      const now = new Date();
+      let startDate = new Date();
+      let endDate = new Date();
+
+      if (period === 'CUSTOM' && customRange.start && customRange.end) {
+        startDate = new Date(customRange.start);
+        endDate = new Date(customRange.end);
+      } else {
+        switch (period) {
+          case 'hoje':
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case '7d':
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case 'este_mes':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            break;
+          case 'ultimo_mes':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+            break;
+          case 'este_ano':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+            break;
+          case 'ultimo_ano':
+            startDate = new Date(now.getFullYear() - 1, 0, 1);
+            endDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+            break;
+          default: startDate.setMonth(now.getMonth() - 6);
+        }
+      }
+
+      if (endDate > now) {
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      }
+
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+
+      try {
+        // Busca por IDs das compras pagas no período
+        const { data: purchases, error: pError } = await supabase
+          .from('lead_purchases')
+          .select('id, date, status')
+          .gte('date', startStr)
+          .lte('date', endStr)
+          .in('status', PAID_PURCHASE_STATUSES)
+          .limit(10000);
+
+        if (pError || !purchases || purchases.length === 0) {
+          setProductsData({ categories: [], products: [] });
+          setIsProductsLoading(false);
+          return;
+        }
+
+        const purchaseIds = purchases.map((p: any) => p.id);
+        const batchSize = 500;
+        let ppData: any[] = [];
+        for (let i = 0; i < purchaseIds.length; i += batchSize) {
+          const batchIds = purchaseIds.slice(i, i + batchSize);
+          const { data: batchData, error: batchErr } = await supabase
+            .from('products_purchases')
+            .select('*')
+            .in('purchase_id', batchIds);
+          console.log('[Produtos] batch result:', { count: batchData?.length, err: batchErr?.message, sample: JSON.stringify(batchData?.[0]) });
+          if (batchData) ppData = [...ppData, ...batchData];
+        }
+
+        if (ppData.length === 0) {
+          setProductsData({ categories: [], products: [] });
+          setIsProductsLoading(false);
+          return;
+        }
+
+        // Inspecionar as colunas reais do objeto
+        if (ppData.length > 0) {
+          console.log('[Produtos] Colunas de products_purchases:', Object.keys(ppData[0]));
+          console.log('[Produtos] ppData[0] completo:', JSON.stringify(ppData[0]));
+        }
+
+        const getSku = (pp: any): string => {
+          // Tentar vários nomes possíveis para o campo de SKU
+          const val = pp.sku ?? pp.sku_id ?? pp.product_sku ?? pp.product_id ?? pp.item_sku ?? null;
+          return val != null ? String(val) : '';
+        };
+
+        const skus = Array.from(new Set(ppData.map(getSku).filter(Boolean)));
+        console.log('[Produtos] SKUs extraídos:', skus.length, 'amostra:', skus.slice(0, 5));
+        
+        let prodData: any[] = [];
+        if (skus.length > 0) {
+          const batchSize2 = 500;
+          for (let i = 0; i < skus.length; i += batchSize2) {
+            const batchSkus = skus.slice(i, i + batchSize2);
+            const { data: batchProd, error: bpErr } = await supabase
+              .from('products')
+              .select('sku, product_name')
+              .in('sku', batchSkus);
+            console.log('[Produtos] products query:', { count: batchProd?.length, err: bpErr?.message });
+            if (batchProd) prodData = [...prodData, ...batchProd];
+          }
+        }
+
+        const prodMap = new Map();
+        prodData.forEach((p: any) => prodMap.set(String(p.sku), p));
+
+        const productCounts: Record<string, { count: number, name: string }> = {};
+        const categoryCounts: Record<string, number> = {};
+
+        ppData.forEach((pp: any) => {
+          const sku = getSku(pp);
+          if (!sku) return;
+          const qty = Number(pp.quantity) || 1;
+          const product = prodMap.get(sku);
+          const pName = product?.product_name || `SKU ${sku}`;
+          if (!productCounts[sku]) productCounts[sku] = { count: 0, name: pName };
+          productCounts[sku].count += qty;
+          const cat = pName.split(' ')[0];
+          if (cat) categoryCounts[cat] = (categoryCounts[cat] || 0) + qty;
+        });
+
+        const topProducts = Object.values(productCounts).sort((a, b) => b.count - a.count).slice(0, 20);
+        const topCategories = Object.entries(categoryCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 15);
+
+        setProductsData({ categories: topCategories, products: topProducts });
+      } catch (err) {
+        console.error('[Produtos] Erro geral:', err);
+      } finally {
+        setIsProductsLoading(false);
+      }
+    }
+    
+    fetchProductsRankings();
+  }, [activeTab, filters.period, filters.customRange]);
 
   // Usa refs para estabilizar as funções de fetch e evitar re-fetches ao trocar de janela
   const fetchGlobalStatsRef = useRef(fetchGlobalStats);
@@ -299,6 +446,13 @@ export const Dashboard: React.FC = () => {
         >
           Retenção
           {activeTab === 'cac-ltv' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-fortis-brand shadow-[0_0_10px_rgba(88,133,117,1)]" />}
+        </button>
+        <button
+          className={`pb-3 px-2 font-bold text-sm transition-all relative ${activeTab === 'produtos' ? 'text-white' : 'text-fortis-mid hover:text-white'}`}
+          onClick={() => setActiveTab('produtos')}
+        >
+          Produtos
+          {activeTab === 'produtos' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-fortis-brand shadow-[0_0_10px_rgba(88,133,117,1)]" />}
         </button>
       </div>
 
@@ -521,6 +675,67 @@ export const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+      )}
+      {activeTab === 'produtos' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-300">
+           {/* Categorias */}
+           <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+             <h3 className="font-bold flex items-center gap-2 mb-6">
+                <Package size={18} className="text-fortis-brand" />
+                Categorias Mais Vendidas (Top 15)
+             </h3>
+             {isProductsLoading ? (
+               <div className="h-64 flex flex-col items-center justify-center text-fortis-brand">
+                 <Activity size={32} className="animate-spin mb-4 opacity-50" />
+                 <span className="text-xs font-bold uppercase tracking-widest text-fortis-mid animate-pulse">Carregando dados...</span>
+               </div>
+             ) : (
+               <div className="space-y-4">
+                 {productsData.categories.map((c, idx) => (
+                   <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-fortis-dark/50 border border-fortis-surface hover:border-fortis-brand/30 transition-colors">
+                     <div className="flex items-center gap-4">
+                       <span className="text-xs font-black text-fortis-mid/70 w-5">{idx + 1}º</span>
+                       <span className="text-sm font-semibold text-white">{c.name}</span>
+                     </div>
+                     <span className="text-sm font-black text-fortis-brand bg-fortis-brand/10 px-2 py-1 rounded">{c.count}</span>
+                   </div>
+                 ))}
+                 {productsData.categories.length === 0 && (
+                   <p className="text-sm text-fortis-mid text-center py-8">Nenhuma categoria encontrada no período.</p>
+                 )}
+               </div>
+             )}
+           </div>
+
+           {/* Produtos */}
+           <div className="bg-fortis-panel border border-fortis-surface rounded-2xl p-8">
+             <h3 className="font-bold flex items-center gap-2 mb-6">
+                <ShoppingCart size={18} className="text-blue-400" />
+                Produtos Mais Vendidos (Top 20)
+             </h3>
+             {isProductsLoading ? (
+               <div className="h-64 flex flex-col items-center justify-center text-blue-400">
+                 <Activity size={32} className="animate-spin mb-4 opacity-50" />
+                 <span className="text-xs font-bold uppercase tracking-widest text-fortis-mid animate-pulse">Carregando dados...</span>
+               </div>
+             ) : (
+               <div className="space-y-4">
+                 {productsData.products.map((p, idx) => (
+                   <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-fortis-dark/50 border border-fortis-surface hover:border-blue-400/30 transition-colors">
+                     <div className="flex items-center gap-4">
+                       <span className="text-xs font-black text-fortis-mid/70 w-5">{idx + 1}º</span>
+                       <span className="text-sm font-semibold text-white line-clamp-1">{p.name}</span>
+                     </div>
+                     <span className="text-sm font-black text-blue-400 bg-blue-400/10 px-2 py-1 rounded ml-4 shrink-0">{p.count}</span>
+                   </div>
+                 ))}
+                 {productsData.products.length === 0 && (
+                   <p className="text-sm text-fortis-mid text-center py-8">Nenhum produto encontrado no período.</p>
+                 )}
+               </div>
+             )}
+           </div>
         </div>
       )}
     </div>

@@ -189,17 +189,17 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, sale }) =
                                                 <td className="px-6 py-4">
                                                     {item.product ? (
                                                         <div>
-                                                            <p className="text-sm font-bold text-white">{item.product.product_name || `Produto ${item.sku}`}</p>
+                                                            <p className="text-xs font-bold text-white">{item.product.product_name || `Produto ${item.sku}`}</p>
                                                             {item.product.description && (
-                                                                <p className="text-xs text-fortis-mid mt-0.5 line-clamp-1">{item.product.description}</p>
+                                                                <p className="text-[10px] text-fortis-mid mt-0.5 line-clamp-1">{item.product.description}</p>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-sm text-fortis-mid italic">Detalhes não disponíveis</span>
+                                                        <span className="text-xs text-fortis-mid italic">Detalhes não disponíveis</span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="text-sm font-semibold text-white/90">
+                                                    <span className="text-xs font-semibold text-white/90">
                                                         {item.size || '-'}
                                                     </span>
                                                 </td>
