@@ -192,6 +192,13 @@ export const FlowDetails: React.FC = () => {
     const [taskToAdvance, setTaskToAdvance] = useState<string | null>(null);
     const [advanceDueDate, setAdvanceDueDate] = useState('');
 
+    // Move-flow modal state
+    const [isMoveFlowModalOpen, setIsMoveFlowModalOpen] = useState(false);
+    const [taskToMove, setTaskToMove] = useState<CadenceTask | null>(null);
+    const [targetFlowId, setTargetFlowId] = useState('');
+    const [targetStageId, setTargetStageId] = useState('');
+    const [targetDueDate, setTargetDueDate] = useState('');
+
     // Calendar state for advance modal
     const [calendarDate, setCalendarDate] = useState(() => {
         const now = new Date();
@@ -313,6 +320,70 @@ export const FlowDetails: React.FC = () => {
         setTaskToAdvance(null);
         setTargetStageToAdvance(null);
         setAdvanceDueDate('');
+    };
+
+    const openMoveFlowModal = (task: CadenceTask) => {
+        setIsTaskModalOpen(false);
+        setTaskToMove(task);
+        setTargetFlowId('');
+        setTargetStageId('');
+        setTargetDueDate('');
+        setIsMoveFlowModalOpen(true);
+    };
+
+    const handleMoveFlow = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!taskToMove || !targetFlowId || !targetStageId) return;
+
+        const targetFlow = cadenceFlows.find(f => f.id === targetFlowId);
+        const targetStageName = targetFlow?.stages.find(s => s.id === targetStageId)?.name || 'Etapa';
+        const currentStageName = flow?.stages.find(s => s.id === taskToMove.stageId)?.name || 'Etapa';
+
+        const isoDate = targetDueDate ? new Date(targetDueDate).toISOString() : null;
+
+        // 1. Complete current task
+        const { error: completeError } = await supabase
+            .from('cadence_tasks')
+            .update({ completed: true })
+            .eq('id', taskToMove.id);
+
+        if (completeError) {
+            console.error("Error completing current task:", completeError);
+            return;
+        }
+
+        // 2. Create target task
+        const { error: insertError } = await supabase
+            .from('cadence_tasks')
+            .insert({
+                flow_id: targetFlowId,
+                stage_id: targetStageId,
+                lead_id: Number(taskToMove.leadId),
+                due_date: isoDate
+            });
+
+        if (insertError) {
+            console.error("Error inserting target task:", insertError);
+            return;
+        }
+
+        // 3. Register history
+        await supabase.from('lead_history').insert([{
+            lead_id: taskToMove.leadId,
+            type: 'NOTE',
+            description: `Lead movido do fluxo "${flowName}" (etapa "${currentStageName}") para o fluxo "${targetFlow?.name}" (etapa "${targetStageName}").`,
+            user_id: currentUser?.id
+        }]);
+
+        // 4. Update local tasks state
+        setTasks(prev => prev.filter(t => t.id !== taskToMove.id));
+
+        // 5. Close and clean up
+        setIsMoveFlowModalOpen(false);
+        setTaskToMove(null);
+        setTargetFlowId('');
+        setTargetStageId('');
+        setTargetDueDate('');
     };
 
     const completeTask = async (taskId: string, dueDate: string | null, explicitTargetStageId?: string) => {
@@ -1702,6 +1773,13 @@ export const FlowDetails: React.FC = () => {
                             <div className="flex gap-3">
                                 <button
                                     type="button"
+                                    onClick={() => openMoveFlowModal(selectedTask)}
+                                    className="px-6 py-2.5 bg-[#06B6D4] hover:bg-[#0891B2] text-white font-bold rounded-xl flex items-center gap-2 transition-colors shadow-lg shadow-cyan-500/20"
+                                >
+                                    <Workflow size={15} /> Mover Fluxo
+                                </button>
+                                <button
+                                    type="button"
                                     onClick={() => setIsTaskModalOpen(false)}
                                     className="px-6 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors"
                                 >
@@ -1856,6 +1934,120 @@ export const FlowDetails: React.FC = () => {
                     </div>
                 );
             })()}
+
+            {/* Modal: Mover de Fluxo */}
+            {isMoveFlowModalOpen && taskToMove && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+                    <form onSubmit={handleMoveFlow} className="bg-fortis-panel border border-fortis-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 pt-6 pb-4 border-b border-fortis-surface/50">
+                            <div className="flex items-center justify-between mb-1">
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Workflow size={18} className="text-cyan-400" />
+                                    Mover para Outro Fluxo
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsMoveFlowModalOpen(false);
+                                        setTaskToMove(null);
+                                    }}
+                                    className="text-fortis-mid hover:text-white p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <p className="text-xs text-fortis-mid">
+                                Selecione o fluxo e a etapa de destino para o lead <span className="text-white font-bold">{taskToMove.lead?.name}</span>.
+                            </p>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-6 py-5 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-fortis-mid mb-2 uppercase tracking-wider">
+                                    Fluxo de Destino
+                                </label>
+                                <select
+                                    required
+                                    value={targetFlowId}
+                                    onChange={(e) => {
+                                        const flowId = e.target.value;
+                                        setTargetFlowId(flowId);
+                                        const selectedFlow = cadenceFlows.find(f => f.id === flowId);
+                                        if (selectedFlow && selectedFlow.stages.length > 0) {
+                                            setTargetStageId(selectedFlow.stages[0].id);
+                                        } else {
+                                            setTargetStageId('');
+                                        }
+                                    }}
+                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500"
+                                >
+                                    <option value="" disabled>Selecione o fluxo...</option>
+                                    {cadenceFlows.filter(f => f.id !== id).map(f => (
+                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {targetFlowId && (
+                                <div>
+                                    <label className="block text-xs font-bold text-fortis-mid mb-2 uppercase tracking-wider">
+                                        Etapa de Destino
+                                    </label>
+                                    <select
+                                        required
+                                        value={targetStageId}
+                                        onChange={(e) => setTargetStageId(e.target.value)}
+                                        className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500"
+                                    >
+                                        <option value="" disabled>Selecione a etapa...</option>
+                                        {cadenceFlows.find(f => f.id === targetFlowId)?.stages.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-fortis-mid mb-2 uppercase tracking-wider">
+                                    Prazo para a abordagem (due date)
+                                </label>
+                                <input
+                                    type="date"
+                                    value={targetDueDate}
+                                    onChange={e => setTargetDueDate(e.target.value)}
+                                    className="w-full bg-fortis-dark border border-fortis-surface rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500"
+                                />
+                                <p className="text-[10px] text-fortis-mid/60 mt-1">
+                                    Deixe em branco para definir depois.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 pb-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsMoveFlowModalOpen(false);
+                                    setTaskToMove(null);
+                                }}
+                                className="flex-1 py-2.5 bg-fortis-surface text-white font-bold rounded-xl hover:bg-fortis-surface/80 transition-colors text-sm"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!targetFlowId || !targetStageId}
+                                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/20 text-sm flex items-center justify-center gap-2"
+                            >
+                                <Check size={16} className="stroke-[3]" /> Confirmar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
         </div>
     );
 };
